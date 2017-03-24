@@ -1,51 +1,61 @@
-# project name 
-# change to match your main c file
-TARGET = flyMS
+# ------------------------------------------------
+# Generic Makefile
+#
+# Author: yanick.rochon@gmail.com
+# Date  : 2011-08-10
+#
+# Changelog :
+#   2010-11-05 - first version
+#   2011-08-10 - added structure : sources, objects, binaries
+#                thanks to http://stackoverflow.com/users/128940/beta
+# ------------------------------------------------
 
+# project name (generate executable with this name)
+TARGET   = flyMS
 
-
-
-TOUCH 	 := $(shell touch *)
-CC	:= gcc
-LINKER   := gcc -o
+CC       = gcc
+# compiling flags here
 CFLAGS	:= -c -Wall -g  
-#-Wextra -Wall -pedantic
 LFLAGS	:= -lm -lrt -lpthread -lrobotics_cape
-
-SOURCES  := $(wildcard *.c)
-INCLUDES := $(wildcard *.h)
-OBJECTS  := $(SOURCES:$%.c=$%.o)
-RM := rm -f
+# linking flags here
+LINKER   = gcc -o
 
 INSTALL_DIR = /usr/bin/
 
-# linking Objects
-$(TARGET): $(OBJECTS)
-	@$(LINKER) $(@) $(OBJECTS) $(LFLAGS)
-	@echo
-	@echo "Linking Complete"
+
+# change these to proper directories where each file should be
+SRCDIR   = src
+INCDIR   = include
+OBJDIR   = obj
+BINDIR   = bin
+
+SOURCES  := $(wildcard $(SRCDIR)/*.c)
+INCLUDES := $(wildcard $(INCDIR)/*.h)
+OBJECTS  := $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
+rm       = rm -f
 
 
-# compiling command
-$(OBJECTS): %.o : %.c
-	@$(TOUCH) $(CC) $(CFLAGS) -c $< -o $(@)
+$(BINDIR)/$(TARGET): $(OBJECTS)
+	@$(LINKER)	$@	$(LFLAGS)	$(OBJECTS)
+	@echo "Linking complete!"
+
+$(OBJECTS): $(OBJDIR)/%.o:$(SRCDIR)/%.c
+	@$(CC) $(CFLAGS) -c $< -o $@
 	@echo "Compiled "$<" successfully!"
-
-
-# install to /usr/bin
-$(phony all) : $(TARGET)
-.PHONY: install
-
+	
 install: $(all)
 	@$(MAKE)
-	@install -m 0755 $(TARGET) $(INSTALL_DIR)
+	@install -m 0755 $(BINDIR)/$(TARGET) $(INSTALL_DIR)
 	@echo
-	@echo "Project "$(TARGET)" installed to $(INSTALL_DIR)"
+	@echo "Project "$(BINDIR)/$(TARGET)" installed to $(INSTALL_DIR)"
 	@echo
-	
+
+.PHONY: clean
 clean:
-	@$(RM) $(OBJECTS)
-	@$(RM) $(TARGET)
+	@$(rm) $(OBJECTS)
 	@echo "Cleanup complete!"
 
-	
+.PHONY: remove
+remove: clean
+	@$(rm) $(BINDIR)/$(TARGET)
+	@echo "Executable removed!"

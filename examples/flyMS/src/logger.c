@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include<fcntl.h>
 #include<robotics_cape.h>
-#include "logger.h"
+#include "../include/logger.h"
 
 
 /************************************************************************
@@ -103,18 +103,18 @@ int start_core_log(logger_t *logger){
 	struct stat st = {0};
 	
 	sprintf(n,"%d",m);
-	strcpy(logger_filepath,"/root/Robotics_Cape/log_filesMS/run");
+	strcpy(logger_filepath,"/root/Robotics_Cape/testresult/run");
 	strcat(logger_filepath,n);
 	
 	
 	while(!stat(logger_filepath, &st)){
 		m++;
 		sprintf(n,"%d",m);
-		strcpy(logger_filepath,"/root/Robotics_Cape/log_filesMS/run");
+		strcpy(logger_filepath,"/root/Robotics_Cape/testresult/run");
 		strcat(logger_filepath,n);
 		}
 	
-	filepath=concat("/root/Robotics_Cape/log_filesMS/run", n);
+	filepath=concat("/root/Robotics_Cape/testresult/run", n);
 	mkdir(filepath,0700);
 	printf("\n Saving log files in: %s\n",logger_filepath);
 	

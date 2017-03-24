@@ -7,9 +7,9 @@
 #include <unistd.h>
 #include<fcntl.h>
 #include<robotics_cape.h>
-#include "gps.h"
-#include "kalman.h"
-#include "flight_defs.h"
+#include "../include/gps.h"
+#include "../include/kalman.h"
+#include "../include/flight_defs.h"
 
 
 /**		Globals 		*/

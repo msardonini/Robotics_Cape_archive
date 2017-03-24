@@ -14,12 +14,12 @@
 #include <pthread.h>
 #include <math.h>
 #include <time.h>
-#include "filter.h"
-#include "flight_defs.h"
-#include "flyMS.h"
-#include "kalman.h"
-#include "gps.h"
-#include "logger.h"
+#include "../include/filter.h"
+#include "../include/flight_defs.h"
+#include "../include/flyMS.h"
+#include "../include/kalman.h"
+#include "../include/gps.h"
+#include "../include/logger.h"
 
 
 #define DEBUG
