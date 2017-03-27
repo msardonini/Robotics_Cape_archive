@@ -14,15 +14,15 @@
 #include <pthread.h>
 #include <math.h>
 #include <time.h>
-#include "../include/filter.h"
-#include "../include/flight_defs.h"
-#include "../include/flyMS.h"
-#include "../include/kalman.h"
-#include "../include/gps.h"
-#include "../include/logger.h"
+#include "linear_algebra.h"
+#include "filter.h"
+#include "kalman.h"
+#include "gps.h"
+#include "logger.h"
+#include "flyMS.h"
 
 
-#define DEBUG
+//#define DEBUG
 
 #define LAT_ACCEL_BIAS -0.0177
 #define LON_ACCEL_BIAS  0.0063
@@ -47,7 +47,7 @@ filters_t				filters;			//Struct to contain all the filters
 accel_data_t 			accel_data;			//A struct which is given to kalman.c
 logger_t				logger;
 tranform_matrix_t		transform;
-
+uint8_t 				imu_err_count;
 imu_data_t				imu_data;			//Struct to relay all IMU info from driver to here
 float 					accel_bias[3] = {LAT_ACCEL_BIAS, LON_ACCEL_BIAS, ALT_ACCEL_BIAS};
 float 					yaw_offset[3] = {0, 0, YAW_OFFSET};
@@ -56,12 +56,12 @@ float 					yaw_offset[3] = {0, 0, YAW_OFFSET};
 
  
 int flight_core(void * ptr){
-	
-	control_variables_t *STATE = (control_variables_t*)ptr;
+	imu_err_count = 0;
+	//control_variables_t *STATE = (control_variables_t*)ptr;
 	
 	//printf("pointer value %f\n", STATE->pitch);
 	
-	//static vector_t *X_state_Lat1, *X_state_Lon1;
+	static vector_t *X_state_Lat1, *X_state_Lon1;
 	
 	//Keep an i for loops
 	static uint8_t i=0;
@@ -85,8 +85,8 @@ int flight_core(void * ptr){
 		clock_gettime(CLOCK_MONOTONIC, &function_control.start_time); //Set the reference time to the first iteration
 		setpoint.Aux = 1; control.kill_switch[0]=1;
 		function_control.dsm2_timeout=0;
-		//X_state_Lat1 = get_lat_state();
-		//X_state_Lon1 = get_lon_state();	
+		X_state_Lat1 = get_lat_state();
+		X_state_Lon1 = get_lon_state();	
 		read_barometer();
 		//initial_alt = bmp_get_altitude_m();
 		set_state(RUNNING);
@@ -111,7 +111,6 @@ int flight_core(void * ptr){
 	matrix_times_col_vec(transform.IMU_to_drone_dmp, transform.dmp_imu, &transform.dmp_drone);
 	matrix_times_col_vec(transform.IMU_to_drone_gyro, transform.gyro_imu, &transform.gyro_drone);
 	matrix_times_col_vec(transform.IMU_to_drone_accel, transform.accel_imu, &transform.accel_drone);
-
 
 	//Subtract the gravity vector component from lat/lon accel
 	transform.accel_drone.data[0]+= 9.8 * sin(transform.dmp_drone.data[0]);
@@ -208,7 +207,7 @@ int flight_core(void * ptr){
 		
 		if(function_control.dsm2_timeout>1.5/DT) {
 			printf("\nLost Connection with Remote!! Shutting Down Immediately \n");	
-			fprintf(Error_logger,"\nLost Connection with Remote!! Shutting Down Immediately \n");	
+			fprintf(logger.Error_logger,"\nLost Connection with Remote!! Shutting Down Immediately \n");	
 			set_state(EXITING);
 		}
 		#endif
@@ -392,7 +391,7 @@ int flight_core(void * ptr){
 	}
 	if(control.kill_switch[0] < .5) {
 		printf("\nKill Switch Hit! Shutting Down\n");
-		fprintf(Error_logger,"\nKill Switch Hit! Shutting Down\n");	
+		fprintf(logger.Error_logger,"\nKill Switch Hit! Shutting Down\n");	
 		set_state(EXITING);
 	}		
 	#endif
@@ -417,7 +416,7 @@ int flight_core(void * ptr){
 	control.time=(float)(function_control.log_time.tv_sec - function_control.start_time.tv_sec) + 
 						((float)(function_control.log_time.tv_nsec - function_control.start_time.tv_nsec) / 1000000000) ;
 	
-	/*
+	
 	logger.new_entry.time			= control.time;	
 	logger.new_entry.pitch			= control.pitch;	
 	logger.new_entry.roll			= control.roll;
@@ -440,15 +439,15 @@ int flight_core(void * ptr){
 	logger.new_entry.Aux			= setpoint.Aux;
 	logger.new_entry.lat_error		= control.lat_error;
 	logger.new_entry.lon_error		= control.lon_error;
-//	logger.new_entry.kalman_lat		= X_state_Lat1->data[0];
-//	logger.new_entry.kalman_lon		= X_state_Lon1->data[0];
+	logger.new_entry.kalman_lat		= X_state_Lat1->data[0];
+	logger.new_entry.kalman_lon		= X_state_Lon1->data[0];
 	logger.new_entry.accel_lat		= accel_data.accel_Lat;
 	logger.new_entry.accel_lon		= accel_data.accel_Lon;
 	logger.new_entry.baro_alt		= control.baro_alt;
 	log_core_data(&logger.core_logger, &logger.new_entry);
 	
 	
-	
+	/*
 	fprintf(logger,"%4.5f,",control.time);
 	fprintf(logger,"%0.4f,%0.4f,%0.4f,%0.4f,",control.u[0],control.u[1],control.u[2],control.u[3]);
 	fprintf(logger,"%1.3f,%1.3f,%2.4f,",control.pitch,control.roll,control.yaw[0]);
@@ -464,7 +463,7 @@ int flight_core(void * ptr){
 	*/
 	
 
-	/*
+	
 		//Print some stuff
 		printf("\r ");
 		printf("time %3.3f ", control.time);
@@ -486,6 +485,8 @@ int flight_core(void * ptr){
 	//	printf(" Pitch %1.2f ", control.pitch);
 	//	printf(" Roll %1.2f ", control.roll);
 		printf(" Yaw %2.3f ", control.yaw[0]); 
+		//printf(" Yaw dmp cysys %2.3f ",imu_data.fused_TaitBryan[2] + yaw_offset[2]);
+		printf(" Yaw dmp cysys %2.3f ",transform.dmp_imu.data[2] );
 	//	printf(" DPitch %1.2f ", control.d_pitch_f); 
 	//	printf(" DRoll %1.2f ", control.d_roll_f);
 	//	printf(" DYaw %2.3f ", control.d_yaw); 	
@@ -501,8 +502,8 @@ int flight_core(void * ptr){
 	//	printf(" Pos_Lat %2.3f ", X_state_Lat1->data[0]);	
 	//	printf(" Pos_Lon %2.3f ", X_state_Lon1->data[0]);
 	//	printf("control: %d",get_state());
-		printf("Baro Alt: %f ",baro_alt);
-		*/
+	//	printf("Baro Alt: %f ",baro_alt);
+		
 		
 		/***************** Get GPS Data if available *******************/
 	if(is_new_GPS_data()){
@@ -543,7 +544,7 @@ int main(int argc, char *argv[]){
 
 	
 	//Define some threads
-	//pthread_t led_thread;
+	pthread_t led_thread;
 	pthread_t kalman_thread;
 	pthread_t core_logging_thread;
 	//pthread_t barometer_alt_threat;
@@ -554,13 +555,13 @@ int main(int argc, char *argv[]){
 		return -1;
 	}	
 	
-	
+	/*
 	if(initialize_barometer(OVERSAMPLE, INTERNAL_FILTER)<0){
 		printf("initialize_barometer failed\n");
 		return -1;
 	}
 //	pthread_create(&barometer_alt_threat, NULL, barometer_monitor, (void*) NULL);
-	
+	*/
 	
 	// set up IMU configuration
 	imu_config_t imu_config = get_default_imu_config();
@@ -581,10 +582,10 @@ int main(int argc, char *argv[]){
 	}
 
 	//Initialize the remote controller
-	//	initialize_dsm2MS();
+		initialize_dsm2MS();
 	
 	#ifndef DEBUG
-	if(ready_check()){
+	if(ready_check(&control)){
 		printf("Exiting Program \n");
 		return -1;
 	} //Toggle the kill switch a few times to signal it's ready
@@ -606,14 +607,22 @@ int main(int argc, char *argv[]){
 
 	//Start the GPS thread, flash the LED's if GPS has a fix
 	GPS_data.GPS_init_check=GPS_init(argc, argv,&GPS_data);
-	//pthread_create(&led_thread, NULL, LED_thread, (void*) &GPS_data);
+	
+	
+	led_thread_t GPS_ready;
+	memset(&GPS_ready,0,sizeof(GPS_ready));
+	GPS_ready.GPS_fix_check = GPS_data.GPS_fix_check;
+	GPS_ready.GPS_init_check = GPS_data.GPS_init_check;
+	pthread_create(&led_thread, NULL, LED_thread, (void*) &GPS_ready);
 	
 	
 	//Spawn the Kalman Filter Thread
 	pthread_create(&kalman_thread, NULL , kalman_filter, (void*) NULL);
 	
 	//Give the ESCs a zero command before starting to prevent going into calibration
-	//init_esc_hardware();	 
+	//
+	disable_servo_power_rail();
+	init_esc_hardware();	 
 	 
 	//Start the mutex lock to prevent threads from interfering
 	if(pthread_mutex_init(&function_control.lock,NULL))
@@ -627,7 +636,12 @@ int main(int argc, char *argv[]){
 	printf("Starting \n");
 	set_state(RUNNING);
 	while (get_state() != EXITING) {
-		sleep(1);
+		usleep(5000);
+		imu_err_count++;
+		if (imu_err_count > 3)
+		{
+			fprintf(logger.Error_logger,"Error! IMU read failed for more than 3 consecutive timesteps \n");
+		}
 	}
 	
 	

@@ -7,11 +7,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
-#include<sys/stat.h>
+#include <sys/stat.h>
 #include <unistd.h>
-#include<fcntl.h>
-#include<robotics_cape.h>
-#include "../include/logger.h"
+#include <fcntl.h>
+#include <robotics_cape.h>
+#include "logger.h"
 
 
 /************************************************************************

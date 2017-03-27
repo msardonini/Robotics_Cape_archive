@@ -1,4 +1,4 @@
-#include "../include/filter.h"
+#include "filter.h"
 #include <stdio.h>
 
 

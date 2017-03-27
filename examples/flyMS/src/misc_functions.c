@@ -1,58 +1,9 @@
-#pragma once
 #include <robotics_cape.h>
+#include "flyMS.h"
 #include <pthread.h>
 #include "gps.h"
 
-#ifndef FLYMS_H
-#define FLYMS_H
-
 //Coordinate system transformations matrices
-/*
-extern matrix_t IMU_to_drone_dmp, IMU_to_drone_gyro, IMU_to_drone_accel;
-extern vector_t dmp_imu, gyro_imu, accel_imu;
-extern vector_t dmp_drone, gyro_drone, accel_drone;
-extern accel_data_t 			accel_data;			//A struct which is given to kalman.c
-extern filters_t filters;
-extern int Global_State, GPS_fix_check, GPS_init_check;
-*/
-/************** CONTROL PROGRAM STUFF **************/
-
-
-
-
-
-
-
-//char* concat(char *s1, char *s2);
-
-
-
-
-/**************** Function to bring data to Kalman Filter */
-
-
-
-/******************* Barometer Stuff *********************/
-
-// choice of 1,2,4,8,16 oversampling. Here we use 16 and sample at 25hz which
-// is close to the update rate specified in robotics_cape.h for that oversample.
-#define OVERSAMPLE  BMP_OVERSAMPLE_16
-// choice of OFF, 2, 4, 8, 16 filter constants. Here we turn off the filter and 
-// opt to use our own 2nd order filter instead.
-#define INTERNAL_FILTER	BMP_FILTER_8
-#define BMP_CHECK_HZ	1
-
-
-
-
-
-#ifndef ROBOTICS_CAPE
-#include <robotics_cape.h>
-#endif
-
-	
-
-
 
 
 
@@ -63,9 +14,10 @@ int ready_check(control_variables_t *control){
 	printf("Toggle the kill swtich twice and leave up to initialize\n");
 	while(count<6 && get_state()!=EXITING){
 		zero_escs();
-		if(is_new_dsm2_data()){
+		if(is_new_dsm2_dataMS()){
 			control->kill_switch[1]=control->kill_switch[0];
-			control->kill_switch[0]=get_dsm2_ch_normalized(5);
+			control->kill_switch[0]=get_dsm2_ch_normalizedMS(5);
+			printf("Value: %f \r",control->kill_switch[0]);
 			usleep(100000);
 			if(control->kill_switch[0] < -0.75 && control->kill_switch[1] > 0.15){
 			count++;
@@ -83,8 +35,8 @@ int ready_check(control_variables_t *control){
 	while(control->kill_switch[0] < 0.5 && get_state()!=EXITING)
 		{
 		sleep(.5);
-		if(is_new_dsm2_data()){
-			control->kill_switch[0]=get_dsm2_ch_normalized(5);	
+		if(is_new_dsm2_dataMS()){
+			control->kill_switch[0]=get_dsm2_ch_normalizedMS(5);	
 			}
 		}
 	
@@ -100,7 +52,7 @@ int ready_check(control_variables_t *control){
 
 void* LED_thread(void *ptr){
 	
-	GPS_data_t *GPS_data= (GPS_data_t*)ptr;
+	led_thread_t *GPS_ready= (led_thread_t*)ptr;
 	
 	const char *filepath0 = "/sys/class/leds/beaglebone:green:usr0/brightness";
 	const char *filepath1 = "/sys/class/leds/beaglebone:green:usr1/brightness";
@@ -135,10 +87,10 @@ void* LED_thread(void *ptr){
 			fclose(file3);
 		}
 		
-		usleep(500000-400000*GPS_data->GPS_fix_check);
+		usleep(500000-400000*GPS_ready->GPS_fix_check);
 		if(get_state() == EXITING) pthread_exit(NULL);
 		
-		if(GPS_data->GPS_init_check==-1){
+		if(GPS_ready->GPS_init_check==-1){
 			if((file0 = fopen(filepath0, "r+")) != NULL){
 				fwrite("0", sizeof(char), 1, file0);
 				fclose(file0);
@@ -159,7 +111,7 @@ void* LED_thread(void *ptr){
 				fclose(file3);
 			}
 		}
-		usleep(500000-400000*GPS_data->GPS_fix_check);
+		usleep(500000-400000*GPS_ready->GPS_fix_check);
 	}
 	return NULL;
   }
@@ -262,6 +214,7 @@ int init_rotation_matrix(tranform_matrix_t *transform){
 		}
 	}
 	
+	
 	pitch_offset = 0; roll_offset = M_PI; yaw_offset = -5 * M_PI/4;
 	float ROTATION_MAT2[][3] = ROTATION_MATRIX1;
 	for(i=0; i<3; i++){
@@ -317,8 +270,3 @@ void* barometer_monitor(void* ptr){
 	}
 	return NULL;
 }
-
-
-
-
-#endif

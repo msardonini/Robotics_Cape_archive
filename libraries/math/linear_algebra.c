@@ -549,6 +549,11 @@ int matrix_times_col_vec(matrix_t A, vector_t v, vector_t *output){
 		return -1;
 	}
 	
+	for (i=0; i<output->len; i++)
+	{
+		output->data[i] = 0;
+	}
+	
 	for(i=0;i<A.rows;i++){
 		for(j=0;j<A.cols;j++){	
 			output->data[i] += v.data[j]*A.data[i][j];

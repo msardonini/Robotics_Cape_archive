@@ -53,6 +53,7 @@ install: $(all)
 .PHONY: clean
 clean:
 	@$(rm) $(OBJECTS)
+	@$(rm) $(BINDIR)/$(TARGET)
 	@echo "Cleanup complete!"
 
 .PHONY: remove

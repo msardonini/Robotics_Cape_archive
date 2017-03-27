@@ -86,9 +86,10 @@ int main(){
 	imu_config.dmp_sample_rate = 200;
 	imu_config.orientation = ORIENTATION_Z_UP;
 	imu_config.enable_magnetometer=1;
+	float *ptr1;
 	
 	// start imu
-	if(initialize_imu_dmp(&data, imu_config)){
+	if(initialize_imu_dmp(&data, imu_config, (void*)ptr1)){
 		printf("ERROR: can't talk to IMU, all hope is lost\n");
 		blink_led(RED, 5, 5);
 		return -1;
@@ -128,16 +129,16 @@ int read_imu_data(){
 		accel_imu.data[i] = data.accel[i];
 	}
 	
-	dmp_drone = matrix_times_col_vec(IMU_to_drone_dmp, dmp_imu);
-	gyro_drone = matrix_times_col_vec(IMU_to_drone_gyro, gyro_imu);
-	accel_drone = matrix_times_col_vec(IMU_to_drone_accel, accel_imu);
+	//dmp_drone = matrix_times_col_vec(IMU_to_drone_dmp, dmp_imu);
+	//gyro_drone = matrix_times_col_vec(IMU_to_drone_gyro, gyro_imu);
+	//accel_drone = matrix_times_col_vec(IMU_to_drone_accel, accel_imu);
 
 	accel_drone.data[0]+= 9.8 * sin(dmp_drone.data[0]);
 	accel_drone.data[1]+= 9.8 * sin(dmp_drone.data[1]);
 	
 		printf("\r");
 		
-
+/*
 		 printf("%6.2f %6.2f %6.2f |",		accel_drone.data[0],\
 											accel_drone.data[1],\
 											accel_drone.data[2]);
@@ -147,14 +148,15 @@ int read_imu_data(){
 										gyro_drone.data[TB_ROLL_Y],\
 										gyro_drone.data[TB_YAW_Z]);
 								 
-
-		printf("%2.3f %2.3f %2.3f |",	dmp_drone.data[0],\
-											dmp_drone.data[1],\
-											dmp_drone.data[2]);
+*/
+		printf("%2.3f %2.3f %2.3f |",	dmp_imu.data[0],\
+											dmp_imu.data[1],\
+											dmp_imu.data[2]);
 											
 											
 			
 /******************************** fprintf commands *****************************/
+		/*
 		fprintf(logger,"%f,%f,%f,",		accel_drone.data[0],\
 										accel_drone.data[1],\
 										accel_drone.data[2]);
@@ -162,7 +164,7 @@ int read_imu_data(){
 		fprintf(logger,"%f,%f,%f\n",		gyro_drone.data[TB_PITCH_X],\
 										gyro_drone.data[TB_ROLL_Y],\
 										gyro_drone.data[TB_YAW_Z]);										
-			
+			*/
 		if(read_imu_temp(&data)<0){
 			printf("read temp data failed\n");
 		}

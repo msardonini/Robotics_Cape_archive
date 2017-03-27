@@ -13,7 +13,7 @@
 #include "mpu9250_defs.h"
 #include "dmp_firmware.h"
 #include "dmpKey.h"
-#include "/root/Robotics_Cape/examples/flyMS/flight_defs.h"
+//#include "/root/Robotics_Cape/examples/flyMS/flight_defs.h"
 
 // uncomment #define DEBUG for helpful debug messages
 // #define DEBUG

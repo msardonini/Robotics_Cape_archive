@@ -1,12 +1,19 @@
 #pragma once
+#include "linear_algebra.h"
 #include <robotics_cape.h>
 #include "filter.h"
-#include "logger.h"
-#include <stdlib.h>
-#include <stdio.h>
 
 #ifndef FLIGHT_DEFS_H
 #define FLIGHT_DEFS_H
+
+
+// choice of 1,2,4,8,16 oversampling. Here we use 16 and sample at 25hz which
+// is close to the update rate specified in robotics_cape.h for that oversample.
+#define OVERSAMPLE  BMP_OVERSAMPLE_16
+// choice of OFF, 2, 4, 8, 16 filter constants. Here we turn off the filter and 
+// opt to use our own 2nd order filter instead.
+#define INTERNAL_FILTER	BMP_FILTER_8
+#define BMP_CHECK_HZ	1
 
 
 #define PITCH_ROLL_KP 0.0305   //0.0285
@@ -170,13 +177,21 @@ typedef struct filters_t{
 	
 }filters_t;
 
+typedef struct led_thread_t{
+	uint8_t GPS_init_check;
+	uint8_t GPS_fix_check;
+	
+	
+}led_thread_t;
 
 
-int ready_check();
+
+int ready_check(control_variables_t *control);
 void zero_escs();
 accel_data_t* get_accel_pointer();
 void* barometer_monitor();
-
-
-
+int initialize_filters(filters_t *filters);
+int init_rotation_matrix(tranform_matrix_t *transform);
+void* LED_thread(void *ptr);
+void init_esc_hardware();
 #endif

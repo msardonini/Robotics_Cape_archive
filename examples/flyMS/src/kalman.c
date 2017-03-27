@@ -2,13 +2,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../include/flight_defs.h"
-#include "../include/linear_algebra.h"
+#include "flyMS.h"
+#include "linear_algebra.h"
 #include <robotics_cape.h>
-#include"../include/flight_defs.h"
-//#include"flyMS.h"
-#include"../include/gps.h"
-#include"../include/kalman.h"
+#include "flyMS.h"
+
+#include "gps.h"
+#include "kalman.h"
 
 
 /************** Globals ********************/
