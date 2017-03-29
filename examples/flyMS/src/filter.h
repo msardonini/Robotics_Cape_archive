@@ -1,3 +1,6 @@
+#pragma once
+#include <integer.h>
+
 #ifndef FILTER_H
 #define FILTER_H
 
@@ -48,7 +51,7 @@ float saturateFilter(float filter, float min, float max);
 --- Zero Filter ---
 reset all input and output history to 0
 */
-int zeroFilter(discrete_filter* filter);
+int zeroFilter(digital_filter_t* filter);
 
 /*
 --- PreFill Filter ---
@@ -73,7 +76,7 @@ digital_filter_t* initialize_filter(uint8_t order, float num[], float den[]);
 //
 // N is the pole location for derivative filter. Must be greater than 2*DT
 // smaller N gives faster filter decay
-discrete_filter* generatePID(float kp, float ki, float kd, float Tf, float dt);
+digital_filter_t* generatePID(float kp, float ki, float kd, float Tf, float dt);
 
 // print order, numerator, and denominator constants
 void print_filter(digital_filter_t *filter);

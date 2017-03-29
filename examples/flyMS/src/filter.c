@@ -53,7 +53,7 @@ float update_filter(digital_filter_t *filter, float new_val){
 	//Save a history of the amount of values needed 
 
 	//	to apply a filter of a given order
-	uint32_t i, k = 0;
+	uint8_t i, k = 0;
 
 	//Apply the difference Equation
 	float new_filt_val = 0;
@@ -91,15 +91,13 @@ float saturateFilter(float filter, float min, float max){
 	else return filter;
 }
 
-int zeroFilter(discrete_filter* filter){
+int zeroFilter(digital_filter_t* filter){
 	int i = 0;
 	
-	for(i=filter->order; i>=0; i--){
-		filter->inputs[i] = 0;
-		filter->outputs[i] = 0;
+	for(i=0; i<filter->filter_len; i++){
+		filter->data[i + 2*filter->filter_len] = 0;
+		filter->data[i + 3*filter->filter_len] = 0;
 	}
-	filter->last_input = 0;
-	filter->current_output = 0;
 	return 0;
 }
 
@@ -111,7 +109,7 @@ int prefill_filter(digital_filter_t *filter, float value)
                return -1;
         }
 	
-	uint32_t i;
+	uint8_t i;
 	for (i = 0; i < (filter->order+1); i++)
 	{
 		filter->data[i + 2*filter->filter_len] = value;

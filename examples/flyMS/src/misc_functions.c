@@ -144,9 +144,9 @@ int initialize_filters(filters_t *filters){
 	float num[5] = { 0.0059,  0.0053,  0.0096,  0.0053,  0.0059}; 
 	float den[5] = { 1.0000, -3.0477,  3.8240, -2.2926,  0.5523};
 	
-	filters->LPF_d_pitch = generateFilter(4, DT, num, den);		
-	filters->LPF_d_roll= generateFilter(4, DT, num, den);	
-	filters->LPF_d_yaw = generateFilter(4, DT, num, den);
+	filters->LPF_d_pitch = initialize_filter(4, DT, num, den);		
+	filters->LPF_d_roll= initialize_filter(4, DT, num, den);	
+	filters->LPF_d_yaw = initialize_filter(4, DT, num, den);
 	
 	//ellip filter, 5th order .5 pass 70 stop .05 cutoff
 	float num3[6] = { 0.00041175441,  -0.00087875614,   0.00053292744,   0.00053292744,  -0.00087875614,  0.00041175441};
@@ -154,32 +154,32 @@ int initialize_filters(filters_t *filters){
 //	float num3[6] =	{0.0045,    0.0006,    0.0052,    0.0052,    0.0006,    0.0045};
 //	float den3[6] =	{1.0000,   -3.6733,    5.8400,   -4.9357,    2.2049,   -0.4153};
 
-	filters->LPF_Accel_Lat = generateFilter(5, DT, num3, den3);							
-	filters->LPF_Accel_Lon = generateFilter(5, DT, num3, den3);		
+	filters->LPF_Accel_Lat = initialize_filter(5, DT, num3, den3);							
+	filters->LPF_Accel_Lon = initialize_filter(5, DT, num3, den3);		
 	
 	//Gains on Low Pass Filter for Yaw Reference		
 	float num2[4] = {  0.0317,    0.0951,    0.0951,    0.0317};
 	float den2[4] = { 1.0000,   -1.4590,    0.9104,   -0.1978};					
-	filters->LPF_Yaw_Ref_P = generateFilter(3, DT, num2, den2);							
-	filters->LPF_Yaw_Ref_R = generateFilter(3, DT, num2, den2);	
+	filters->LPF_Yaw_Ref_P = initialize_filter(3, DT, num2, den2);							
+	filters->LPF_Yaw_Ref_R = initialize_filter(3, DT, num2, den2);	
 	
 /*
 	float num3[3] = {  0.0055 ,   0.0111 ,   0.0055};
 	float den3[3] = {   1.0000 ,  -1.7786  ,  0.8008};					
-	LPF_Height_Damping = generateFilter(2, DT, num3, den3);				
+	LPF_Height_Damping = initialize_filter(2, DT, num3, den3);				
 */
 
 //	float num4[2] = { 2/(2+DT*DECAY_CONST),  -2/(2+DT*DECAY_CONST)+0.001};
 //	float den4[2] = {   1.0000 , (DT*DECAY_CONST-2)/(DT*DECAY_CONST+2)};	
-//	filters->Outer_Loop_TF_pitch = generateFilter(1, DT, num4, den4);		
-//	filters->Outer_Loop_TF_roll = generateFilter(1, DT, num4, den4);
-	//Throttle_controller = generateFilter(1, DT, num4, den4);
+//	filters->Outer_Loop_TF_pitch = initialize_filter(1, DT, num4, den4);		
+//	filters->Outer_Loop_TF_roll = initialize_filter(1, DT, num4, den4);
+	//Throttle_controller = initialize_filter(1, DT, num4, den4);
 
 	//4th order ellip .1 dp PB 60 dB SB 0.2 wn
 	float num5[5] = {0.0088,    0.0144,    0.0197,    0.0144,    0.0088};
 	float den5[5] = {1.0000,   -2.6537,    2.9740,   -1.5989,    0.3455};	
-	filters->LPF_pitch = generateFilter(4, DT, num5, den5);		
-	filters->LPF_roll = generateFilter(4, DT, num5, den5);	
+	filters->LPF_pitch = initialize_filter(4, DT, num5, den5);		
+	filters->LPF_roll = initialize_filter(4, DT, num5, den5);	
 	
 	//zeroFilter(&core_state.yaw_ctrl);
 	zeroFilter(&filters->LPF_d_pitch);
