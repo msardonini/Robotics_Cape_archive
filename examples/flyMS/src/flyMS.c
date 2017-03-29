@@ -117,13 +117,13 @@ int flight_core(void * ptr){
 	transform.accel_drone.data[1]+= 9.8 * sin(transform.dmp_drone.data[1]);
 	
 	//lowpass the accel data and subtract the biases
-	accel_data.accel_Lat	= marchFilter(&filters.LPF_Accel_Lat,transform.accel_drone.data[0]-accel_bias[0]);
-	accel_data.accel_Lon	= marchFilter(&filters.LPF_Accel_Lon,transform.accel_drone.data[1]-accel_bias[1]);
+	accel_data.accel_Lat	= update_filter(filters.LPF_Accel_Lat,transform.accel_drone.data[0]-accel_bias[0]);
+	accel_data.accel_Lon	= update_filter(filters.LPF_Accel_Lon,transform.accel_drone.data[1]-accel_bias[1]);
 	accel_data.accelz		= transform.accel_drone.data[2]-accel_bias[2];
 
-	control.pitch 			= marchFilter(&filters.LPF_pitch,transform.dmp_drone.data[0]);
+	control.pitch 			= update_filter(filters.LPF_pitch,transform.dmp_drone.data[0]);
 	//control.pitch 			= dmp_drone.data[0];
-	control.roll 			= marchFilter(&filters.LPF_roll,transform.dmp_drone.data[1]);
+	control.roll 			= update_filter(filters.LPF_roll,transform.dmp_drone.data[1]);
 	control.yaw[1] 			= control.yaw[0];	
 	control.yaw[0] 			= transform.dmp_drone.data[2] + control.num_wraps*2*M_PI;
 
@@ -257,8 +257,8 @@ int flight_core(void * ptr){
 		control.lat_error=setpoint.lat_setpoint-GPS_data.pos_lat;
 		control.lon_error=setpoint.lon_setpoint-GPS_data.pos_lon;
 		
-		setpoint.pitch_ref=0.14*marchFilter(&filters.Outer_Loop_TF_pitch,control.lat_error);
-		setpoint.roll_ref=-0.14*marchFilter(&filters.Outer_Loop_TF_roll,control.lon_error);
+		setpoint.pitch_ref=0.14*update_filter(filters.Outer_Loop_TF_pitch,control.lat_error);
+		setpoint.roll_ref=-0.14*update_filter(filters.Outer_Loop_TF_roll,control.lon_error);
 		
 		setpoint.pitch_ref=saturateFilter(setpoint.pitch_ref,-0.2,0.2);
 		setpoint.roll_ref=saturateFilter(setpoint.roll_ref,-0.2,0.2);
@@ -270,18 +270,18 @@ int flight_core(void * ptr){
 		setpoint.pitch_ref=P_R_MAG*sin(Theta_Ref-control.yaw[0]);
 		
 		control.alt_error=control.alt_ref-GPS_data.gps_altitude;
-		//control.throttle=0.12*marchFilter(&filters.Throttle_controller,control.alt_error);
+		//control.throttle=0.12*update_filter(&filters.Throttle_controller,control.alt_error);
 		
 		//control.throttle=saturateFilter(control.throttle,-0.15,0.15)+control.standing_throttle;
 	}
 	
 	//Filter out any high freq noise coming from yaw in the CS translation
-	setpoint.filt_pitch_ref = marchFilter(&filters.LPF_Yaw_Ref_P,setpoint.pitch_ref);
-	setpoint.filt_roll_ref = marchFilter(&filters.LPF_Yaw_Ref_R,setpoint.roll_ref);
+	setpoint.filt_pitch_ref = update_filter(filters.LPF_Yaw_Ref_P,setpoint.pitch_ref);
+	setpoint.filt_roll_ref = update_filter(filters.LPF_Yaw_Ref_R,setpoint.roll_ref);
 	
 	//Filter out high frequency noise in Raw Gyro data
-	control.d_pitch_f = marchFilter(&filters.LPF_d_pitch,control.d_pitch);			
-	control.d_roll_f = marchFilter(&filters.LPF_d_roll,control.d_roll);
+	control.d_pitch_f = update_filter(filters.LPF_d_pitch,control.d_pitch);			
+	control.d_roll_f = update_filter(filters.LPF_d_roll,control.d_roll);
 
 	//Set the Pitch reference Setpoint
 	control.dpitch_setpoint=((setpoint.filt_pitch_ref - control.pitch)*  
@@ -291,20 +291,20 @@ int flight_core(void * ptr){
 					6 - control.d_roll_f);
 	
 	//Apply the PD Controllers 
-	marchFilter(&filters.pitch_PD,control.dpitch_setpoint);
-	marchFilter(&filters.roll_PD,control.droll_setpoint);				
+	update_filter(filters.pitch_PD,control.dpitch_setpoint);
+	update_filter(filters.roll_PD,control.droll_setpoint);				
 	
 
 	
 	/************************************************************************
 	*                        	Yaw Controller                              *
 	************************************************************************/	
-	control.d_yaw_f = marchFilter(&filters.LPF_d_yaw,control.d_yaw);
+	control.d_yaw_f = update_filter(filters.LPF_d_yaw,control.d_yaw);
 	
 	setpoint.yaw_ref[1]=setpoint.yaw_ref[0];
 	setpoint.yaw_ref[0]=setpoint.yaw_ref[1]+(setpoint.yaw_rate_ref[0]+setpoint.yaw_rate_ref[1])*DT/2;
 	
-	marchFilter(&filters.yaw_PD,setpoint.yaw_ref[0]-control.yaw[0]);
+	update_filter(filters.yaw_PD,setpoint.yaw_ref[0]-control.yaw[0]);
 	
 
 	

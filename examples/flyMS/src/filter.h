@@ -1,20 +1,30 @@
 #ifndef FILTER_H
 #define FILTER_H
 
-#define MAX_ARRAY_SIZE 32
+#ifndef TRUE
+#define TRUE 1
+#endif
 
-typedef struct discrete_filter{
-	int order;
-	float dt;
-	// input scaling factor usually =1, useful for fast controller tuning
-	float prescaler; 
-	float numerator[MAX_ARRAY_SIZE];	// points to array of numerator constants
-	float denominator[MAX_ARRAY_SIZE];	// points to array 
-	float inputs[MAX_ARRAY_SIZE];
-	float outputs[MAX_ARRAY_SIZE];
-	float last_input;
-	float current_output;
-}discrete_filter;
+#ifndef FALSE
+#define FALSE 0
+#endif
+
+/** \var typedef struct digital_filter_t
+    \brief A type definition for a struct that contains all the info needed for a digital filter    
+*/
+typedef struct digital_filter_t{
+
+	uint8_t order; 							/**< Specified order of the filter*/
+	uint8_t filter_len; 							/**< Specified order of the filter*/
+	uint8_t current_index_f;				/**< Index showing where in the vector current and past data is */
+	uint8_t initialized;					/**< Boolean saying if filter has been initialized*/
+	float data[];							/**< Denominator Coefficients*/
+
+} digital_filter_t;
+
+
+
+
 
 
 /* 
@@ -22,7 +32,7 @@ typedef struct discrete_filter{
 march the filter forward in time one step with new input data
 returns new output which could also be accessed with filter.current_output
 */
-float marchFilter(discrete_filter* filter, float new_input);
+float update_filter(digital_filter_t *filter, float new_val);
 
 
 /* 
@@ -45,7 +55,7 @@ int zeroFilter(discrete_filter* filter);
 fill the past inputs with the curent input
 use before marchFilter when starting to avoid ugly step input
 */
-int preFillFilter(discrete_filter* filter, float input);
+int prefill_filter(digital_filter_t *filter, float value);
 
 
 /*
@@ -56,17 +66,17 @@ and set transfer function constants.
 Note: A normalized transfer function should have a leading 1 
 in the denominator but can be !=1 in this library
 */
-discrete_filter generateFilter(int order, float dt,float numerator[],float denominator[]);
+digital_filter_t* initialize_filter(uint8_t order, float num[], float den[]);
 
 // discrete-time implementation of a parallel PID controller with derivative filter
 // similar to Matlab pid command
 //
 // N is the pole location for derivative filter. Must be greater than 2*DT
 // smaller N gives faster filter decay
-discrete_filter generatePID(float kp, float ki, float kd, float Tf, float dt);
+discrete_filter* generatePID(float kp, float ki, float kd, float Tf, float dt);
 
 // print order, numerator, and denominator constants
-int printFilterDetails(discrete_filter* filter);
+void print_filter(digital_filter_t *filter);
 
 
 

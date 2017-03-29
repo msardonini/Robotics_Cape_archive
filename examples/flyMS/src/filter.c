@@ -2,32 +2,80 @@
 #include <stdio.h>
 
 
+digital_filter_t* initialize_filter(uint8_t order, float num[], float den[]){
 
-float marchFilter(discrete_filter* filter, float new_input){
-	int i = 0;
-	for(i=filter->order; i>0; i--){
-		filter->inputs[i] = filter->inputs[i-1];
-		filter->outputs[i] = filter->outputs[i-1];
-		
-	}
-	filter->inputs[0] = new_input;
+	uint8_t i;
 
-	// evaluate the difference equation
-	float new_output = 0;
-	for(i=0; i<(filter->order+1); i++){
-		new_output += filter->prescaler * filter->numerator[i] * filter->inputs[i];
+	digital_filter_t *filter;
+	filter=malloc(sizeof(digital_filter_t) +4*(order+1)*sizeof(float));
+
+	filter->order=order;	
+	filter->filter_len=order+1;
+
+	// First denominator term should be zero. If not, normalize the filter constants
+	if (den[0] > 1.001f || den[0] < 0.999f){
+		printf("Warning! Leading denominator term is not one\n");
+		for (i=order; i > 0 ; i--){
+			num[i] = num[i]/den[0];
+			den[i] = den[i]/den[0];
+			
+		}
 	}
-	for(i=1; i<(filter->order+1); i++){
-		new_output -= filter->denominator[i] * filter->outputs[i]; 
+
+	//Store the given constants in the digital filter struct
+	for (i=0;i<order+1; i++){
+		filter->data[i] = num[i];
+		filter->data[i+filter->filter_len] = den[i];
 	}
-	// scale in case denominator doesn't have a leading 1
-	filter->outputs[0] = new_output/filter->denominator[0];	
-	filter->current_output = filter->outputs[0];
-	filter->last_input = new_input;
-	
-	return filter->current_output;
+
+	for (i=0; i<filter->filter_len; i++){
+		filter->data[i+2*filter->filter_len] = 0.0f;
+		filter->data[i+3*filter->filter_len] = 0.0f;
+	}
+
+	//Set the starting index to be zero
+	filter->current_index_f = 0;
+
+	//Set an initialized flag
+	filter->initialized = TRUE;
+	return filter;
 }
 
+float update_filter(digital_filter_t *filter, float new_val){
+	//Check if the given filter has been initialiazed
+	uint8_t temp = filter->initialized;
+	if (temp == FALSE){
+		printf("Error!, Need to initialize filter before using it, %u\n", temp);
+		return -1;
+	}
+
+	filter->data[filter->current_index_f + 2*filter->filter_len] = new_val;
+	//Save a history of the amount of values needed 
+
+	//	to apply a filter of a given order
+	uint32_t i, k = 0;
+
+	//Apply the difference Equation
+	float new_filt_val = 0;
+	for (i=filter->current_index_f; i < (filter->order + filter->current_index_f + 1); i++)
+	{
+		new_filt_val  += filter->data[k] * filter->data[(i % (filter->order + 1))+2*filter->filter_len];
+		if (i == filter->current_index_f) 
+		{
+			k++;
+			continue;
+		}
+		new_filt_val  -= filter->data[k + filter->filter_len] * filter->data[(i % (filter->order + 1)) + 3*filter->filter_len];
+		k++;
+
+	}
+	filter->data[filter->current_index_f + 3*filter->filter_len] = new_filt_val;
+	
+	if (filter->current_index_f == 0) 	filter->current_index_f = filter->order;
+	else		filter->current_index_f = filter->current_index_f - 1;
+	
+	return new_filt_val;
+}
 
 
  
@@ -55,56 +103,45 @@ int zeroFilter(discrete_filter* filter){
 	return 0;
 }
 
-int preFillFilter(discrete_filter* filter, float input){
-	int i = 0;
-	for(i=filter->order; i>=0; i--){
-		filter->inputs[i] = input;
+int prefill_filter(digital_filter_t *filter, float value)
+{
+
+        if (filter->initialized == FALSE){
+               printf("Error!, Need to initialize filter before using it\n");
+               return -1;
+        }
+	
+	uint32_t i;
+	for (i = 0; i < (filter->order+1); i++)
+	{
+		filter->data[i + 2*filter->filter_len] = value;
+		filter->data[i + 3*filter->filter_len] = value;
 	}
-	filter->last_input = input; 
 	return 0;
-
 }
 
-// allocate memory for a filter of specified order
-// Fill with transfer function constants
-discrete_filter generateFilter(int order,float dt,float num[],float den[]){
-	discrete_filter filter;
-	filter.order = order;
-	filter.prescaler = 1;
-	filter.last_input = 0;
-	filter.current_output = 0;
-	int i = 0;
-	for(i=0; i<(order+1); i++){
-		filter.numerator[i] = num[i];
-		filter.denominator[i] = den[i];
-		filter.inputs[i] = 0;
-		filter.outputs[i] = 0;
-	}
-	return filter;
-}
-
-discrete_filter generateFirstOrderLowPass(float dt, float time_constant){
+digital_filter_t* generateFirstOrderLowPass(float dt, float time_constant){
 	const float lp_const = dt/time_constant;
 	float numerator[]   = {lp_const, 0};
 	float denominator[] = {1, lp_const-1};
-	return generateFilter(1,dt,numerator,denominator);
+	return initialize_filter(1,numerator,denominator);
 }
 
-discrete_filter generateFirstOrderHighPass(float dt, float time_constant){
+digital_filter_t* generateFirstOrderHighPass(float dt, float time_constant){
 	float hp_const = dt/time_constant;
 	float numerator[] = {1-hp_const, hp_const-1};
 	float denominator[] = {1,hp_const-1};
-	return generateFilter(1,dt,numerator,denominator);
+	return initialize_filter(1,numerator,denominator);
 }
 
 
-discrete_filter generateIntegrator(float dt){
+digital_filter_t* generateIntegrator(float dt){
 	float numerator[]   = {0, dt};
 	float denominator[] = {1, -1};
-	return generateFilter(1,dt,numerator,denominator);
+	return initialize_filter(1,numerator,denominator);
 }
 
-discrete_filter generatePID(float kp, float ki, float kd, float Tf, float dt){
+digital_filter_t* generatePID(float kp, float ki, float kd, float Tf, float dt){
 	if(Tf <= 2*dt){
 		printf("Tf must be > 2kd for stability\n");
 		return generateFilter(0,dt,0,0);
@@ -125,30 +162,25 @@ discrete_filter generatePID(float kp, float ki, float kd, float Tf, float dt){
 		float denominator[] = 	{1, 
 								(dt-(2.0*Tf))/Tf, 
 								(Tf-dt)/Tf};
-		return generateFilter(2,dt,numerator,denominator);
+		return initialize_filter(2,numerator,denominator);
 	}
 }
 
-int printFilterDetails(discrete_filter* filter){
-	int i;
-	printf("\n");
-	printf("\nOrder: %d\n", filter->order);
-	
-	printf("num: ");
-	for(i=0; i<=filter->order; i++){
-		printf("%0.3f  ", filter->numerator[i]);
-	}
-	
-	printf("\n    ");
-	for(i=0; i<=filter->order; i++){
-		printf("-------");
-	}
-	
-	
-	printf("\nden: ");
-	for(i=0; i<=filter->order; i++){
-		printf("%0.3f  ", filter->denominator[i]);
+void print_filter(digital_filter_t *filter)
+{
+	uint8_t i;
+	printf("\nNumerator Coefficients: \n");
+	for (i = 0; i<=filter->order; i++)
+	{
+		printf("%2.3f, ",(double)filter->data[i]);
 	}
 	printf("\n");
-	return 0;
+ 	printf("Denominator Coefficients: \n");
+	for (i = 0; i<=filter->order; i++)
+    {
+        printf("%2.3f, ",(double)filter->data[i + filter->filter_len]);
+    }
+
+
 }
+

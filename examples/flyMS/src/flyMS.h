@@ -160,21 +160,20 @@ typedef struct tranform_matrix_t{
 
 	
 typedef struct filters_t{
-	discrete_filter			pitch_PD;
-	discrete_filter			roll_PD;
-	discrete_filter			yaw_PD;
-	discrete_filter         LPF_d_pitch;
-	discrete_filter         LPF_d_roll;
-	discrete_filter         LPF_d_yaw;
-	discrete_filter         LPF_Yaw_Ref_P;
-	discrete_filter         LPF_Yaw_Ref_R;
-	discrete_filter			Outer_Loop_TF_pitch;
-	discrete_filter			Outer_Loop_TF_roll;
-	discrete_filter 		LPF_Accel_Lat;
-	discrete_filter 		LPF_Accel_Lon;
-	discrete_filter			LPF_pitch;
-	discrete_filter			LPF_roll;
-	
+	discrete_filter			*pitch_PD;
+	discrete_filter			*roll_PD;
+	discrete_filter			*yaw_PD;
+	discrete_filter         *LPF_d_pitch;
+	discrete_filter         *LPF_d_roll;
+	discrete_filter         *LPF_d_yaw;
+	discrete_filter         *LPF_Yaw_Ref_P;
+	discrete_filter         *LPF_Yaw_Ref_R;
+	discrete_filter			*Outer_Loop_TF_pitch;
+	discrete_filter			*Outer_Loop_TF_roll;
+	discrete_filter 		*LPF_Accel_Lat;
+	discrete_filter 		*LPF_Accel_Lon;
+	discrete_filter			*LPF_pitch;
+	discrete_filter			*LPF_roll;	
 }filters_t;
 
 typedef struct led_thread_t{
