@@ -291,8 +291,8 @@ int flight_core(void * ptr){
 					6 - control.d_roll_f);
 	
 	//Apply the PD Controllers 
-	update_filter(filters.pitch_PD,control.dpitch_setpoint);
-	update_filter(filters.roll_PD,control.droll_setpoint);				
+	control.upitch = update_filter(filters.pitch_PD,control.dpitch_setpoint);
+	control.uroll = update_filter(filters.roll_PD,control.droll_setpoint);				
 	
 
 	
@@ -304,7 +304,7 @@ int flight_core(void * ptr){
 	setpoint.yaw_ref[1]=setpoint.yaw_ref[0];
 	setpoint.yaw_ref[0]=setpoint.yaw_ref[1]+(setpoint.yaw_rate_ref[0]+setpoint.yaw_rate_ref[1])*DT/2;
 	
-	update_filter(filters.yaw_PD,setpoint.yaw_ref[0]-control.yaw[0]);
+	control.uyaw = update_filter(filters.yaw_PD,setpoint.yaw_ref[0]-control.yaw[0]);
 	
 
 	
@@ -340,9 +340,9 @@ int flight_core(void * ptr){
 	}
 	
 	//Apply a saturation filter
-	control.upitch=saturateFilter(filters.pitch_PD.current_output,-MAX_PITCH_COMPONENT,MAX_PITCH_COMPONENT);
-	control.uroll=saturateFilter(filters.roll_PD.current_output,-MAX_ROLL_COMPONENT,MAX_ROLL_COMPONENT);
-	control.uyaw=saturateFilter(filters.yaw_PD.current_output,-MAX_YAW_COMPONENT,MAX_YAW_COMPONENT);
+	control.upitch = saturateFilter(control.upitch,-MAX_PITCH_COMPONENT,MAX_PITCH_COMPONENT);
+	control.uroll = saturateFilter(control.uroll,-MAX_ROLL_COMPONENT,MAX_ROLL_COMPONENT);
+	control.uyaw = saturateFilter(control.uyaw.current_output,-MAX_YAW_COMPONENT,MAX_YAW_COMPONENT);
 	
 	/************************************************************************
 	*  Mixing
