@@ -1,5 +1,5 @@
 #pragma once
-#include <integer.h>
+#include <stdint.h>
 
 #ifndef FILTER_H
 #define FILTER_H
