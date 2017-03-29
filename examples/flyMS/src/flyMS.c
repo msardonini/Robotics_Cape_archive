@@ -342,7 +342,7 @@ int flight_core(void * ptr){
 	//Apply a saturation filter
 	control.upitch = saturateFilter(control.upitch,-MAX_PITCH_COMPONENT,MAX_PITCH_COMPONENT);
 	control.uroll = saturateFilter(control.uroll,-MAX_ROLL_COMPONENT,MAX_ROLL_COMPONENT);
-	control.uyaw = saturateFilter(control.uyaw.current_output,-MAX_YAW_COMPONENT,MAX_YAW_COMPONENT);
+	control.uyaw = saturateFilter(control.uyaw,-MAX_YAW_COMPONENT,MAX_YAW_COMPONENT);
 	
 	/************************************************************************
 	*  Mixing
