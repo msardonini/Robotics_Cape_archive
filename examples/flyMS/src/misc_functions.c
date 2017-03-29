@@ -34,10 +34,11 @@ int ready_check(control_variables_t *control){
 	//make sure the kill switch is in the position to fly before starting
 	while(control->kill_switch[0] < 0.5 && get_state()!=EXITING)
 		{
-		sleep(.5);
+		zero_escs();
 		if(is_new_dsm2_dataMS()){
 			control->kill_switch[0]=get_dsm2_ch_normalizedMS(5);	
 			}
+		usleep(10000);
 		}
 	
 	if(get_state() == EXITING)
