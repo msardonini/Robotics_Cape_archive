@@ -64,12 +64,12 @@ int flight_core(void * ptr){
 	static vector_t *X_state_Lat1, *X_state_Lon1;
 	
 	//Keep an i for loops
-	static uint8_t i=0;
+	static uint8_t i=0, i1=0;
 	
 	//Variables to Initialize things upon startup
 	static uint8_t First_Iteration=1, First_Iteration_GPS=1;
 	
-	//static float initial_alt = 0;
+	static float initial_alt = 0;
 
 	//Initialize some variables if it is the first iteration
 	if(First_Iteration){
@@ -88,7 +88,7 @@ int flight_core(void * ptr){
 		X_state_Lat1 = get_lat_state();
 		X_state_Lon1 = get_lon_state();	
 		read_barometer();
-		//initial_alt = bmp_get_altitude_m();
+		initial_alt = bmp_get_altitude_m();
 		set_state(RUNNING);
 		//fprintf(logger.GPS_logger,"time,deg_lon,min_lon,deg_lat,min_lat,speed,direction,gps_alt,hdop,fix\n");
 		printf("First Iteration ");
@@ -395,7 +395,7 @@ int flight_core(void * ptr){
 		set_state(EXITING);
 	}		
 	#endif
-	/*
+	
 	i1++;
 	if (i1 == 8) // Only read the barometer at 25Hz
 	{
@@ -407,10 +407,10 @@ int flight_core(void * ptr){
 		i1=0;
 	}
 	
-	baro_alt = bmp_get_altitude_m() - initial_alt;
+	control.baro_alt = bmp_get_altitude_m() - initial_alt;
 
 	fflush(stdout);
-	*/
+	
 	
 	clock_gettime(CLOCK_MONOTONIC, &function_control.log_time);
 	control.time=(float)(function_control.log_time.tv_sec - function_control.start_time.tv_sec) + 
@@ -444,6 +444,7 @@ int flight_core(void * ptr){
 	logger.new_entry.accel_lat		= accel_data.accel_Lat;
 	logger.new_entry.accel_lon		= accel_data.accel_Lon;
 	logger.new_entry.baro_alt		= control.baro_alt;
+	logger.new_entry.v_batt			= get_dc_jack_voltage();
 	log_core_data(&logger.core_logger, &logger.new_entry);
 	
 	
@@ -547,7 +548,7 @@ int main(int argc, char *argv[]){
 	pthread_t led_thread;
 	pthread_t kalman_thread;
 	pthread_t core_logging_thread;
-	//pthread_t barometer_alt_threat;
+	pthread_t barometer_alt_threat;
 	
 	//Initialize some cape and beaglebone hardware
 	if(initialize_cape()){
@@ -555,13 +556,13 @@ int main(int argc, char *argv[]){
 		return -1;
 	}	
 	
-	/*
+	
 	if(initialize_barometer(OVERSAMPLE, INTERNAL_FILTER)<0){
 		printf("initialize_barometer failed\n");
 		return -1;
 	}
-//	pthread_create(&barometer_alt_threat, NULL, barometer_monitor, (void*) NULL);
-	*/
+	//pthread_create(&barometer_alt_threat, NULL, barometer_monitor, (void*) NULL);
+	
 	
 	// set up IMU configuration
 	imu_config_t imu_config = get_default_imu_config();

@@ -33,7 +33,8 @@
     X(float,  "%f",	 kalman_lon		) \
     X(float,  "%f",	 accel_lat		) \
     X(float,  "%f",	 accel_lon		) \
-    X(float,  "%f",	 baro_alt		)
+    X(float,  "%f",	 baro_alt		) \
+    X(float,  "%f",	 v_batt			)
 	
 
 #define CORE_LOG_BUF_LEN 200 //once per second is reasonable
