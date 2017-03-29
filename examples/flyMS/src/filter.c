@@ -142,7 +142,7 @@ digital_filter_t* generateIntegrator(float dt){
 digital_filter_t* generatePID(float kp, float ki, float kd, float Tf, float dt){
 	if(Tf <= 2*dt){
 		printf("Tf must be > 2kd for stability\n");
-		return initialize_filter(0,dt,0,0);
+		return initialize_filter(0,0,0);
 	}
 	// if ki==0, return a PD filter with rolloff
 	if(ki==0){
@@ -150,7 +150,7 @@ digital_filter_t* generatePID(float kp, float ki, float kd, float Tf, float dt){
 							-(((ki*dt-kp)*(dt-Tf))+kd)/Tf};
 		float denominator[] = 	{1, 
 								-(Tf-dt)/Tf};
-		return initialize_filter(1,dt,numerator,denominator);
+		return initialize_filter(1,numerator,denominator);
 	}
 	//otherwise PID with roll off
 	else{
