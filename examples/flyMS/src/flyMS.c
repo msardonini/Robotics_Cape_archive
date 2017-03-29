@@ -22,7 +22,7 @@
 #include "flyMS.h"
 
 
-//#define DEBUG
+#define DEBUG
 
 #define LAT_ACCEL_BIAS -0.0177
 #define LON_ACCEL_BIAS  0.0063
@@ -117,13 +117,13 @@ int flight_core(void * ptr){
 	transform.accel_drone.data[1]+= 9.8 * sin(transform.dmp_drone.data[1]);
 	
 	//lowpass the accel data and subtract the biases
-	//accel_data.accel_Lat	= marchFilter(&filters.LPF_Accel_Lat,transform.accel_drone.data[0]-accel_bias[0]);
-	//accel_data.accel_Lon	= marchFilter(&filters.LPF_Accel_Lon,transform.accel_drone.data[1]-accel_bias[1]);
+	accel_data.accel_Lat	= marchFilter(&filters.LPF_Accel_Lat,transform.accel_drone.data[0]-accel_bias[0]);
+	accel_data.accel_Lon	= marchFilter(&filters.LPF_Accel_Lon,transform.accel_drone.data[1]-accel_bias[1]);
 	accel_data.accelz		= transform.accel_drone.data[2]-accel_bias[2];
 
-	//control.pitch 			= marchFilter(&filters.LPF_pitch,transform.dmp_drone.data[0]);
+	control.pitch 			= marchFilter(&filters.LPF_pitch,transform.dmp_drone.data[0]);
 	//control.pitch 			= dmp_drone.data[0];
-	//control.roll 				= marchFilter(&filters.LPF_roll,transform.dmp_drone.data[1]);
+	control.roll 			= marchFilter(&filters.LPF_roll,transform.dmp_drone.data[1]);
 	control.yaw[1] 			= control.yaw[0];	
 	control.yaw[0] 			= transform.dmp_drone.data[2] + control.num_wraps*2*M_PI;
 
@@ -421,8 +421,8 @@ int flight_core(void * ptr){
 	logger.new_entry.pitch			= control.pitch;	
 	logger.new_entry.roll			= control.roll;
 	logger.new_entry.yaw			= control.yaw[0];
-	logger.new_entry.d_pitch		= control.d_pitch;	
-	logger.new_entry.d_roll			= control.d_roll;
+	logger.new_entry.d_pitch		= control.d_pitch_f;	
+	logger.new_entry.d_roll			= control.d_roll_f;
 	logger.new_entry.d_yaw			= control.d_yaw;
 	logger.new_entry.u_1			= control.u[0];
 	logger.new_entry.u_2			= control.u[1];
@@ -486,10 +486,8 @@ int flight_core(void * ptr){
 	//	printf(" Pitch %1.2f ", control.pitch);
 	//	printf(" Roll %1.2f ", control.roll);
 		printf(" Yaw %2.3f ", control.yaw[0]); 
-		//printf(" Yaw dmp cysys %2.3f ",imu_data.fused_TaitBryan[2] + yaw_offset[2]);
-		printf(" Yaw dmp cysys %2.3f ",transform.dmp_imu.data[2] );
-	//	printf(" DPitch %1.2f ", control.d_pitch_f); 
-	//	printf(" DRoll %1.2f ", control.d_roll_f);
+		printf(" DPitch %1.2f ", control.d_pitch_f); 
+		printf(" DRoll %1.2f ", control.d_roll_f);
 	//	printf(" DYaw %2.3f ", control.d_yaw); 	
 	//	printf(" uyaw %2.3f ", control.upitch); 		
 	//	printf(" uyaw %2.3f ", control.uroll); 		
@@ -548,7 +546,7 @@ int main(int argc, char *argv[]){
 	pthread_t led_thread;
 	pthread_t kalman_thread;
 	pthread_t core_logging_thread;
-	pthread_t barometer_alt_threat;
+	//pthread_t barometer_alt_thread;
 	
 	//Initialize some cape and beaglebone hardware
 	if(initialize_cape()){
@@ -561,7 +559,7 @@ int main(int argc, char *argv[]){
 		printf("initialize_barometer failed\n");
 		return -1;
 	}
-	//pthread_create(&barometer_alt_threat, NULL, barometer_monitor, (void*) NULL);
+	//pthread_create(&barometer_alt_thread, NULL, barometer_monitor, (void*) NULL);
 	
 	
 	// set up IMU configuration
@@ -657,12 +655,14 @@ int main(int argc, char *argv[]){
 	//printf("LED thread joined\n");
 	pthread_join(core_logging_thread, NULL);
 	printf("Logging thread joined\n");
-	 
+	  
 	// Close the log files
 	close(GPS_data.GPS_file);
 	fclose(logger.GPS_logger);
 	
-	
+	static char* StateStrings[] = {	"UNINITIALIZED", "RUNNING", 
+									"PAUSED", "EXITING" };
+	fprintf(logger.Error_logger,"Exiting program, system state is %s\n", StateStrings[get_state()]);
 	fflush(stdout);
 	cleanup_cape();
 	return 0;

@@ -116,9 +116,12 @@ void* kalman_filter(void *ptr){
 	transpose_matrix(&A_mat_tr);
 
 	sleep(5); // wait for other things to start before running
+	static int debug_cout = 0;
 	
 	while (get_state()!=EXITING)
 	{
+		debug_cout++;
+		
 		accel_mat_local.data[0]=accel_data_kal->accel_Lat;
 		accel_mat_local.data[1]=accel_data_kal->accel_Lon;
 		accel_mat_local.data[2]=accel_data_kal->accelz;
@@ -132,13 +135,12 @@ void* kalman_filter(void *ptr){
 		matrix_times_col_vec(A_mat, X_state_Lat, &X_state_Lat);
 		vector_times_scalar2(&B_mat, accel_mat_global.data[0], &tmp31_Lat);
 		add_vectors(X_state_Lat, tmp31_Lat,&X_state_Lat);
-		//#ifdef aslkfhasdkfh
-		 
+
 		 //Calculate Estimated Covariance Matric Pk_Lat 
 		multiply_matrices(A_mat, Pk_Lat, &tmp33_Lat);
 		multiply_matrices(tmp33_Lat, A_mat_tr, &tmp33_Lat);
 		add_matrices(tmp33_Lat, Q_mat, &Pk_Lat);
-		
+
 		 /*********************** LONGITUDE ESTIMATION STEP KALMAN FILTER ******************************/
 		//time update step of Kalman Filter
 		matrix_times_col_vec(A_mat, X_state_Lon, &X_state_Lon);
@@ -155,25 +157,27 @@ void* kalman_filter(void *ptr){
 		{
 			float temp_float_lat = 1/(Pk_Lat.data[0][0]+R_MATRIX);
 			for (i=0;i<3;i++) Kalman_gain_Lat.data[i] = Pk_Lat.data[i][0] * temp_float_lat;
-			 
+			
 			//Update the estimated state accounting for measurement
-			vector_times_scalar2(&Kalman_gain_Lat, GPS_data->pos_lat-X_state_Lat.data[0], &tmp31_Lat);
+			vector_times_scalar2(&Kalman_gain_Lat, GPS_data->pos_lat, &tmp31_Lat);
 			//tmp31_Lat = vector_times_scalar2(&Kalman_gain_Lat, 0-X_state_Lat.data[0]);
 			add_vectors(tmp31_Lat, X_state_Lat, &X_state_Lat);
-			 
+
 			//Calculate the next Covariance Matric Pk_Lat
-			vector_outer_product(Kalman_gain_Lat, H_mat, &tmp33_Lon);
+			vector_outer_product(Kalman_gain_Lat, H_mat, &tmp33_Lat);
 			matrix_times_scalar(&tmp33_Lat, -1);
-			add_matrices(eye,tmp33_Lat, &tmp33_Lat);
-			copy_matrix(Pk_Lat, &tmp33_2_Lat);
+			add_matrices(eye,tmp33_Lat, &tmp33_Lat);			
+			copy_matrix(Pk_Lat, &tmp33_2_Lat); 
 			multiply_matrices(tmp33_Lat,tmp33_2_Lat, &Pk_Lat);
 
+		
+		
 			//printf("Updating Measurement \n"); 
 			float temp_float_lon = 1/(Pk_Lon.data[0][0]+R_MATRIX);
 			for (i=0;i<3;i++) Kalman_gain_Lon.data[i] = Pk_Lon.data[i][0] * temp_float_lon;
 			 
 			 //Update the estimated state accounting for measurement
-			vector_times_scalar2(&Kalman_gain_Lon, GPS_data->pos_lon-X_state_Lon.data[0], &tmp31_Lon);
+			vector_times_scalar2(&Kalman_gain_Lon, GPS_data->pos_lon, &tmp31_Lon);
 			//tmp31_Lon = vector_times_scalar2(&Kalman_gain_Lon, 0-X_state_Lon.data[0]);
 			add_vectors(tmp31_Lon, X_state_Lon, &X_state_Lon);
 
@@ -188,7 +192,6 @@ void* kalman_filter(void *ptr){
 		}
 		usleep(DT*1000000);
  	
-	//	#endif
 	}
 	
 	
