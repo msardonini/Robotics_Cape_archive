@@ -130,6 +130,7 @@ void* LED_thread(void *ptr){
 int initialize_filters(filters_t *filters){
 
 	//PD Controller (I is done manually)
+	printf("1\n");
 	filters->pitch_PD = generatePID(PITCH_ROLL_KP, 0, PITCH_ROLL_KD, 0.15, 0.005);
 	filters->roll_PD  = generatePID(PITCH_ROLL_KP, 0, PITCH_ROLL_KD, 0.15, 0.005);
 	filters->yaw_PD   = generatePID(YAW_KP,		  0, YAW_KD,	    0.15, 0.005);
@@ -148,6 +149,7 @@ int initialize_filters(filters_t *filters){
 	filters->LPF_d_roll= initialize_filter(4, num, den);	
 	filters->LPF_d_yaw = initialize_filter(4, num, den);
 	
+	printf("2\n");
 	//ellip filter, 5th order .5 pass 70 stop .05 cutoff
 	float num3[6] = { 0.00041175441,  -0.00087875614,   0.00053292744,   0.00053292744,  -0.00087875614,  0.00041175441};
 	float den3[6] =	{ 1,  -4.65651332,   8.74687738,  -8.28155697,   3.95103526,  -0.75971050};
@@ -181,14 +183,15 @@ int initialize_filters(filters_t *filters){
 	filters->LPF_pitch = initialize_filter(4, num5, den5);		
 	filters->LPF_roll = initialize_filter(4, num5, den5);	
 	
+	printf("3\n");
 	//zeroFilter(&core_state.yaw_ctrl);
 	zeroFilter(filters->LPF_d_pitch);
 	zeroFilter(filters->LPF_d_roll);
 	zeroFilter(filters->LPF_d_yaw);
 	zeroFilter(filters->LPF_Yaw_Ref_P);
 	zeroFilter(filters->LPF_Yaw_Ref_R);
-	zeroFilter(filters->Outer_Loop_TF_pitch);
-	zeroFilter(filters->Outer_Loop_TF_roll);
+	//zeroFilter(filters->Outer_Loop_TF_pitch);
+	//zeroFilter(filters->Outer_Loop_TF_roll);
 	return 0;
 }
 

@@ -92,7 +92,7 @@ float saturateFilter(float filter, float min, float max){
 }
 
 int zeroFilter(digital_filter_t* filter){
-	int i = 0;
+	uint8_t i = 0;
 	
 	for(i=0; i<filter->filter_len; i++){
 		filter->data[i + 2*filter->filter_len] = 0;
