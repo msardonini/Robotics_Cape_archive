@@ -193,4 +193,5 @@ int initialize_filters(filters_t *filters);
 int init_rotation_matrix(tranform_matrix_t *transform);
 void* LED_thread(void *ptr);
 void init_esc_hardware();
+void* quietEscs(void *ptr);
 #endif

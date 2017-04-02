@@ -22,7 +22,7 @@
 #include "flyMS.h"
 
 
-#define DEBUG
+//#define DEBUG
 
 #define LAT_ACCEL_BIAS -0.0177
 #define LON_ACCEL_BIAS  0.0063
@@ -541,25 +541,28 @@ int flight_core(void * ptr){
 	
 int main(int argc, char *argv[]){
 
-	
-	//Define some threads
-	pthread_t led_thread;
-	pthread_t kalman_thread;
-	pthread_t core_logging_thread;
-	//pthread_t barometer_alt_thread;
-	
 	//Initialize some cape and beaglebone hardware
 	if(initialize_cape()){
 		printf("ERROR: failed to initialize_cape\n");
 		return -1;
 	}	
 	
+	//Define some threads
+	pthread_t led_thread;
+	pthread_t kalman_thread;
+	pthread_t core_logging_thread;
+	pthread_t quiet_esc_thread;
+	//pthread_t barometer_alt_thread;
+	
+	uint8_t flight_core_running = 0;
+	pthread_create(&quiet_esc_thread, NULL, quietEscs, &flight_core_running);
+	 
+	
 	
 	if(initialize_barometer(OVERSAMPLE, INTERNAL_FILTER)<0){
 		printf("initialize_barometer failed\n");
 		return -1;
 	}
-	//pthread_create(&barometer_alt_thread, NULL, barometer_monitor, (void*) NULL);
 	
 	
 	// set up IMU configuration
@@ -630,6 +633,7 @@ int main(int argc, char *argv[]){
 	}
 		
 	//Start the control program
+	flight_core_running = 1;
 	set_imu_interrupt_func(&flight_core);
 	
 	printf("Starting \n");
@@ -642,7 +646,7 @@ int main(int argc, char *argv[]){
 			fprintf(logger.Error_logger,"Error! IMU read failed for more than 3 consecutive timesteps \n");
 		}
 	}
-	
+	flight_core_running = 0;
 	
 	//stop_core_log(&logger.core_logger);// finish writing core_log
 	
@@ -651,8 +655,8 @@ int main(int argc, char *argv[]){
 	printf("GPS thread joined\n");
 	pthread_join(kalman_thread, NULL);
 	printf("Kalman thread joined\n");
-	//pthread_join(led_thread, NULL);
-	//printf("LED thread joined\n");
+	pthread_join(led_thread, NULL);
+	printf("LED thread joined\n");
 	pthread_join(core_logging_thread, NULL);
 	printf("Logging thread joined\n");
 	  
@@ -665,6 +669,9 @@ int main(int argc, char *argv[]){
 	fprintf(logger.Error_logger,"Exiting program, system state is %s\n", StateStrings[get_state()]);
 	fflush(stdout);
 	cleanup_cape();
+	
+	pthread_join(quiet_esc_thread, NULL);
+	printf("Quiet Esc thread joined\n");
 	return 0;
 	}
 	

@@ -13,11 +13,9 @@ int ready_check(control_variables_t *control){
     int count=1;
 	printf("Toggle the kill swtich twice and leave up to initialize\n");
 	while(count<6 && get_state()!=EXITING){
-		zero_escs();
 		if(is_new_dsm2_dataMS()){
 			control->kill_switch[1]=control->kill_switch[0];
 			control->kill_switch[0]=get_dsm2_ch_normalizedMS(5);
-			printf("Value: %f \r",control->kill_switch[0]);
 			usleep(100000);
 			if(control->kill_switch[0] < -0.75 && control->kill_switch[1] > 0.15){
 			count++;
@@ -34,7 +32,6 @@ int ready_check(control_variables_t *control){
 	//make sure the kill switch is in the position to fly before starting
 	while(control->kill_switch[0] < 0.5 && get_state()!=EXITING)
 		{
-		zero_escs();
 		if(is_new_dsm2_dataMS()){
 			control->kill_switch[0]=get_dsm2_ch_normalizedMS(5);	
 			}
@@ -47,7 +44,6 @@ int ready_check(control_variables_t *control){
 	}
 	
 	printf("\nInitialized! Starting program\n");
-	zero_escs(); 
 	return 0;
 }
 
@@ -114,6 +110,37 @@ void* LED_thread(void *ptr){
 		}
 		usleep(500000-400000*GPS_ready->GPS_fix_check);
 	}
+	return NULL;
+  }
+	
+
+// Send a zero command to the ESC's to shut them up when not running flight_core
+void* quietEscs(void *ptr){
+	
+	uint8_t *flight_core_running= (uint8_t*)ptr;
+	
+	while(get_state()!=EXITING)
+	{
+		if (!*flight_core_running)
+		{
+			zero_escs();
+		}
+		usleep(20000);
+	}
+	
+	//keep sending a zero command until program has exitied
+	uint8_t i;
+	for (i=0; i<50; i++)
+	{
+		if (!*flight_core_running)
+		{
+			zero_escs();
+		}
+		usleep(20000);
+	}
+	
+	
+	
 	return NULL;
   }
 	

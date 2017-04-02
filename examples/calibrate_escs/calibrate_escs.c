@@ -33,6 +33,12 @@ void *send_pulses(void *params){
 int main(){
 	initialize_cape();
 	
+	//Send full throttle until the user hits enter
+	width = 0;
+	pthread_t  send_pulse_thread;
+	pthread_create(&send_pulse_thread, NULL, send_pulses, (void*) NULL);
+
+
 	printf("\nDISCONNECT PROPELLERS FROM MOTORS\n");
 	printf("DISCONNECT POWER FROM ESCS\n");
 	printf("press enter to start sending max pulse width\n");
@@ -41,10 +47,7 @@ int main(){
 		goto END;
 	}
 	
-	//Send full throttle until the user hits enter
 	width = 1;
-	pthread_t  send_pulse_thread;
-	pthread_create(&send_pulse_thread, NULL, send_pulses, (void*) NULL);
 	printf("\n");
 	printf("Now reapply power to the ESCs.\n");
 	printf("Press enter again after the ESCs finish chirping\n");
