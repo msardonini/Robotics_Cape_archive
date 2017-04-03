@@ -2,7 +2,7 @@
 #include "flyMS.h"
 #include <pthread.h>
 #include "gps.h"
-
+#include <inttypes.h>
 //Coordinate system transformations matrices
 
 
@@ -129,19 +129,12 @@ void* quietEscs(void *ptr){
 	}
 	
 	//keep sending a zero command until program has exitied
-	uint8_t i;
-	for (i=0; i<50; i++)
-	{
-		if (!*flight_core_running)
-		{
-			zero_escs();
-		}
+	while(!*flight_core_running)
+	{	
+		zero_escs();	
 		usleep(20000);
 	}
-	
-	
-	
-	return NULL;
+	return ptr;
   }
 	
 
@@ -156,11 +149,15 @@ void* quietEscs(void *ptr){
 ************************************************************************/
 int initialize_filters(filters_t *filters){
 
+	
+	filters->pitch_PD = generatePID(5, 6, 0.1, 0.15, 0.005);
+	filters->roll_PD  = generatePID(5, 6, 0.1, 0.15, 0.005);
+	//filters->yaw_PD   = generatePID(YAW_KP,		  0, YAW_KD,	    0.15, 0.005);
+
 	//PD Controller (I is done manually)
-	printf("1\n");
-	filters->pitch_PD = generatePID(PITCH_ROLL_KP, 0, PITCH_ROLL_KD, 0.15, 0.005);
-	filters->roll_PD  = generatePID(PITCH_ROLL_KP, 0, PITCH_ROLL_KD, 0.15, 0.005);
-	filters->yaw_PD   = generatePID(YAW_KP,		  0, YAW_KD,	    0.15, 0.005);
+	filters->pitch_rate_PD = generatePID(PITCH_ROLL_KP, 0, PITCH_ROLL_KD, 0.15, 0.005);
+	filters->roll_rate_PD  = generatePID(PITCH_ROLL_KP, 0, PITCH_ROLL_KD, 0.15, 0.005);
+	filters->yaw_rate_PD   = generatePID(YAW_KP,		  0, YAW_KD,	    0.15, 0.005);
 	
 	//Gains on Low Pass Filter for raw gyroscope output
 	
@@ -168,18 +165,22 @@ int initialize_filters(filters_t *filters){
 	//float num[5] = {0.0186, 0.0743, 0.1114, 0.0743, 0.0186}; 
 	//float den[5] = { 1.0000, -1.5704, 1.2756, -0.4844, 0.0762};
 	
-	//elliptic filter 4th order 1 dB passband ripple 60 dB min Cutoff 0.2 cutoff frq
-	float num[5] = { 0.0059,  0.0053,  0.0096,  0.0053,  0.0059}; 
-	float den[5] = { 1.0000, -3.0477,  3.8240, -2.2926,  0.5523};
+	//elliptic filter 10th order 0.25 dB passband ripple 80 dB min Cutoff 0.4 cutoff frq
+	float num[11] = {   0.003316345545497,   0.006003204398448,   0.015890122416480,   0.022341342884745,   0.031426841006402,
+						0.032682319166147,   0.031426841006402,  0.022341342884745,   0.015890122416480,   0.006003204398448,
+						0.003316345545497};
+
+	float den[11] = {   1.000000000000000,  -4.302142513532524,  10.963685193359051, -18.990960386921738,  24.544342262847074,
+						-24.210021253402012,  18.411553079753368, -10.622846105856944,   4.472385466696109,  -1.251943621469692,
+						0.182152641224648};
+
+	filters->LPF_d_pitch = initialize_filter(10, num, den);		
+	filters->LPF_d_roll= initialize_filter(10, num, den);	
+	filters->LPF_d_yaw = initialize_filter(10, num, den);
 	
-	filters->LPF_d_pitch = initialize_filter(4, num, den);		
-	filters->LPF_d_roll= initialize_filter(4, num, den);	
-	filters->LPF_d_yaw = initialize_filter(4, num, den);
-	
-	printf("2\n");
-	//ellip filter, 5th order .5 pass 70 stop .05 cutoff
-	float num3[6] = { 0.00041175441,  -0.00087875614,   0.00053292744,   0.00053292744,  -0.00087875614,  0.00041175441};
-	float den3[6] =	{ 1,  -4.65651332,   8.74687738,  -8.28155697,   3.95103526,  -0.75971050};
+	//ellip filter, 5th order .5 pass 70 stop .2 cutoff
+	float num3[6] = {0.002284248527015,   0.001560308456655,   0.003463457796419,   0.003463457796419,   0.001560308456655,   0.002284248527015};
+	float den3[6] =	{1.000000000000000,  -3.815166618410549,   6.254410671592536,  -5.434989467207256,   2.491599942967181,  -0.481238499381735};
 //	float num3[6] =	{0.0045,    0.0006,    0.0052,    0.0052,    0.0006,    0.0045};
 //	float den3[6] =	{1.0000,   -3.6733,    5.8400,   -4.9357,    2.2049,   -0.4153};
 
@@ -210,7 +211,6 @@ int initialize_filters(filters_t *filters){
 	filters->LPF_pitch = initialize_filter(4, num5, den5);		
 	filters->LPF_roll = initialize_filter(4, num5, den5);	
 	
-	printf("3\n");
 	//zeroFilter(&core_state.yaw_ctrl);
 	zeroFilter(filters->LPF_d_pitch);
 	zeroFilter(filters->LPF_d_roll);

@@ -102,21 +102,21 @@ int start_core_log(logger_t *logger){
 	int m=1;
 	struct stat st = {0};
 	
-	sprintf(n,"%d",m);
+	sprintf(n,"%03d",m);
 	strcpy(logger_filepath,"/root/Robotics_Cape/testresult/run");
 	strcat(logger_filepath,n);
 	
 	
 	while(!stat(logger_filepath, &st)){
 		m++;
-		sprintf(n,"%d",m);
+		sprintf(n,"%03d",m);
 		strcpy(logger_filepath,"/root/Robotics_Cape/testresult/run");
 		strcat(logger_filepath,n);
 		}
 	
 	filepath=concat("/root/Robotics_Cape/testresult/run", n);
 	mkdir(filepath,0700);
-	printf("\n Saving log files in: %s\n",logger_filepath);
+	printf("Saving log files in: %s\n",logger_filepath);
 	
 	
 	strcat(logger_filepath,"/logger.csv");

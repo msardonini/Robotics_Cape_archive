@@ -16,9 +16,9 @@
 #define BMP_CHECK_HZ	1
 
 
-#define PITCH_ROLL_KP 0.0305   //0.0285
+#define PITCH_ROLL_KP 0.015   //0.0285
 #define PITCH_ROLL_KI .5
-#define PITCH_ROLL_KD 0.0014 //.00175
+#define PITCH_ROLL_KD 0.00155 //.00175
 
 #define YAW_KP 0.5 //0.6
 #define YAW_KI .05
@@ -32,8 +32,8 @@
 #define MAX_PITCH_RANGE 0.666 // in radians
 #define MAX_ROLL_RANGE 0.666 // in radians
 #define MAX_YAW_RATE 2.0 //in Radians per second
-#define MIN_THROTTLE 0.40
-#define MAX_THROTTLE 0.9
+#define MIN_THROTTLE 0.3
+#define MAX_THROTTLE 0.75
 #define MAX_PITCH_COMPONENT 0.25
 #define MAX_ROLL_COMPONENT 0.25
 #define MAX_YAW_COMPONENT 0.25
@@ -160,6 +160,9 @@ typedef struct tranform_matrix_t{
 
 	
 typedef struct filters_t{
+	digital_filter_t			*pitch_rate_PD;
+	digital_filter_t			*roll_rate_PD;
+	digital_filter_t			*yaw_rate_PD;
 	digital_filter_t			*pitch_PD;
 	digital_filter_t			*roll_PD;
 	digital_filter_t			*yaw_PD;

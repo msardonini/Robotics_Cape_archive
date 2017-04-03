@@ -186,12 +186,16 @@ int main(int argc, char *argv[]){
 	
 	// if driving an ESC, send throttle of 0 first
 	// otherwise it will go into calibration mode
-	if(mode==ESC){
-		if(all) send_esc_pulse_normalized_all(0);
-		else send_esc_pulse_normalized(ch,0);
-		usleep(50/1000000);
+	int k = 0;
+	if(mode==ESC)
+	{
+		for (k = 0; k < 50; k++)
+		{
+			if(all) send_esc_pulse_normalized_all(0);
+			else send_esc_pulse_normalized(ch,0);
+			usleep(1000000/50);
+		}
 	}
-	
 	
 	// print out what the program is doing
 	printf("\n");

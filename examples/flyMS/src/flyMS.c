@@ -51,14 +51,13 @@ uint8_t 				imu_err_count;
 imu_data_t				imu_data;			//Struct to relay all IMU info from driver to here
 float 					accel_bias[3] = {LAT_ACCEL_BIAS, LON_ACCEL_BIAS, ALT_ACCEL_BIAS};
 float 					yaw_offset[3] = {0, 0, YAW_OFFSET};
-
+uint8_t 				DEBUG_MODE = 0;		//Run with arg -d to run in debug mode, assumes no battery connected
 
 
  
 int flight_core(void * ptr){
 	imu_err_count = 0;
 	//control_variables_t *STATE = (control_variables_t*)ptr;
-	
 	//printf("pointer value %f\n", STATE->pitch);
 	
 	static vector_t *X_state_Lat1, *X_state_Lon1;
@@ -73,15 +72,6 @@ int flight_core(void * ptr){
 
 	//Initialize some variables if it is the first iteration
 	if(First_Iteration){
-		//memset(&control,0,sizeof(control));
-		//memset(&setpoint,0,sizeof(setpoint));
-		//memset(&GPS_data,0,sizeof(GPS_data));
-		////memset(&function_control,0,sizeof(function_control));
-		//memset(&filters,0,sizeof(filters));
-		//memset(&accel_data,0,sizeof(accel_data));
-		//memset(&logger,0,sizeof(logger));
-		//memset(&transform,0,sizeof(transform));
-		i=0;
 		clock_gettime(CLOCK_MONOTONIC, &function_control.start_time); //Set the reference time to the first iteration
 		setpoint.Aux = 1; control.kill_switch[0]=1;
 		function_control.dsm2_timeout=0;
@@ -90,12 +80,13 @@ int flight_core(void * ptr){
 		read_barometer();
 		initial_alt = bmp_get_altitude_m();
 		set_state(RUNNING);
-		//fprintf(logger.GPS_logger,"time,deg_lon,min_lon,deg_lat,min_lat,speed,direction,gps_alt,hdop,fix\n");
+		fprintf(logger.GPS_logger,"time,deg_lon,min_lon,deg_lat,min_lat,speed,direction,gps_alt,hdop,fix\n");
 		printf("First Iteration ");
 		}
 
-		//Keep all other threads from interfering from this point until unlock
-		pthread_mutex_lock(&function_control.lock);
+	//Keep all other threads from interfering from this point until unlock
+	pthread_mutex_lock(&function_control.lock);
+
 	/**********************************************************
 	*    Read the IMU for Rotational Position and Velocity    *
 	**********************************************************/
@@ -144,7 +135,7 @@ int flight_core(void * ptr){
 	accel_data.roll=control.roll;
 	accel_data.yaw[0]=control.yaw[0];
 	
-		
+	
 	if(First_Iteration){
 		setpoint.yaw_ref[0]=control.yaw[0];
 		First_Iteration=0;
@@ -152,8 +143,6 @@ int flight_core(void * ptr){
 		printf("Started \n");
 	}
 	
-
-		
 	/**********************************************************
 	*           Read the RC Controller for Commands           *
 	**********************************************************/
@@ -202,20 +191,20 @@ int flight_core(void * ptr){
 	}
 	else{ //check to make sure too much time hasn't gone by since hearing the RC
 		
-		#ifndef DEBUG
-		function_control.dsm2_timeout=function_control.dsm2_timeout+1;
-		
-		if(function_control.dsm2_timeout>1.5/DT) {
-			printf("\nLost Connection with Remote!! Shutting Down Immediately \n");	
-			fprintf(logger.Error_logger,"\nLost Connection with Remote!! Shutting Down Immediately \n");	
-			set_state(EXITING);
+		if(!DEBUG_MODE)
+		{
+			function_control.dsm2_timeout=function_control.dsm2_timeout+1;
+			
+			if(function_control.dsm2_timeout>1.5/DT) {
+				printf("\nLost Connection with Remote!! Shutting Down Immediately \n");	
+				fprintf(logger.Error_logger,"\nLost Connection with Remote!! Shutting Down Immediately \n");	
+				set_state(EXITING);
+			}
 		}
-		#endif
-	
 	}
-		
 	
-	#ifdef DEBUG
+	if(DEBUG_MODE)
+	{
 		control.throttle = MIN_THROTTLE;
 		setpoint.Aux = 0;
 		setpoint.roll_ref = 0;
@@ -223,7 +212,7 @@ int flight_core(void * ptr){
 		setpoint.yaw_rate_ref[0] = 0;
 		setpoint.yaw_rate_ref[1] = 0;
 		setpoint.roll_ref = 0;
-	#endif
+	}
 	
 		
 	/************************************************************************
@@ -284,15 +273,20 @@ int flight_core(void * ptr){
 	control.d_roll_f = update_filter(filters.LPF_d_roll,control.d_roll);
 
 	//Set the Pitch reference Setpoint
-	control.dpitch_setpoint=((setpoint.filt_pitch_ref - control.pitch)*  
-					6 - control.d_pitch_f);
+	//control.dpitch_setpoint=((setpoint.filt_pitch_ref - control.pitch)*  
+	//				4 - control.d_pitch_f);
+	
+	control.dpitch_setpoint = update_filter(filters.pitch_PD, setpoint.filt_pitch_ref - control.pitch) - control.d_pitch_f;
+	
 	//Set the Roll reference Setpoint
-	control.droll_setpoint=((setpoint.filt_roll_ref - control.roll)* 
-					6 - control.d_roll_f);
+	//control.droll_setpoint=((setpoint.filt_roll_ref - control.roll)* 
+	//				4 - control.d_roll_f);	
+	
+	control.droll_setpoint = update_filter(filters.roll_PD, setpoint.filt_roll_ref - control.roll) - control.d_roll_f;
 	
 	//Apply the PD Controllers 
-	control.upitch = update_filter(filters.pitch_PD,control.dpitch_setpoint);
-	control.uroll = update_filter(filters.roll_PD,control.droll_setpoint);				
+	control.upitch = update_filter(filters.pitch_rate_PD,control.dpitch_setpoint);
+	control.uroll = update_filter(filters.roll_rate_PD,control.droll_setpoint);				
 	
 
 	
@@ -304,7 +298,7 @@ int flight_core(void * ptr){
 	setpoint.yaw_ref[1]=setpoint.yaw_ref[0];
 	setpoint.yaw_ref[0]=setpoint.yaw_ref[1]+(setpoint.yaw_rate_ref[0]+setpoint.yaw_rate_ref[1])*DT/2;
 	
-	control.uyaw = update_filter(filters.yaw_PD,setpoint.yaw_ref[0]-control.yaw[0]);
+	control.uyaw = update_filter(filters.yaw_rate_PD,setpoint.yaw_ref[0]-control.yaw[0]);
 	
 
 	
@@ -376,25 +370,28 @@ int flight_core(void * ptr){
 	}
 
 	
-	#ifndef DEBUG
-	//Send Commands to Motors
-	if(get_state()!=EXITING){
-		for(i=0;i<4;i++){
-			send_esc_pulse_normalized(i+1,control.u[i]);
+
+	if(!DEBUG_MODE)
+	{
+		//Send Commands to Motors
+		if(get_state()!=EXITING){
+			for(i=0;i<4;i++){
+				send_esc_pulse_normalized(i+1,control.u[i]);
+			}
 		}
-	}
-	else{
-		for(i=0;i<4;i++){
-			control.u[i] = 0;
-			send_esc_pulse_normalized(i+1,control.u[i]);
-		}	
-	}
-	if(control.kill_switch[0] < .5) {
-		printf("\nKill Switch Hit! Shutting Down\n");
-		fprintf(logger.Error_logger,"\nKill Switch Hit! Shutting Down\n");	
-		set_state(EXITING);
-	}		
-	#endif
+		else{
+			for(i=0;i<4;i++){
+				control.u[i] = 0;
+				send_esc_pulse_normalized(i+1,control.u[i]);
+			}	
+		}
+		if(control.kill_switch[0] < .5) {
+			printf("\nKill Switch Hit! Shutting Down\n");
+			fprintf(logger.Error_logger,"\nKill Switch Hit! Shutting Down\n");	
+			set_state(EXITING);
+		}
+	}	
+	
 	
 	i1++;
 	if (i1 == 8) // Only read the barometer at 25Hz
@@ -416,7 +413,7 @@ int flight_core(void * ptr){
 	control.time=(float)(function_control.log_time.tv_sec - function_control.start_time.tv_sec) + 
 						((float)(function_control.log_time.tv_nsec - function_control.start_time.tv_nsec) / 1000000000) ;
 	
-	
+		
 	logger.new_entry.time			= control.time;	
 	logger.new_entry.pitch			= control.pitch;	
 	logger.new_entry.roll			= control.roll;
@@ -439,31 +436,16 @@ int flight_core(void * ptr){
 	logger.new_entry.Aux			= setpoint.Aux;
 	logger.new_entry.lat_error		= control.lat_error;
 	logger.new_entry.lon_error		= control.lon_error;
-	logger.new_entry.kalman_lat		= X_state_Lat1->data[0];
-	logger.new_entry.kalman_lon		= X_state_Lon1->data[0];
+	if (X_state_Lat1->initialized)
+	{
+		logger.new_entry.kalman_lat		= X_state_Lat1->data[0];
+		logger.new_entry.kalman_lon		= X_state_Lon1->data[0];
+	}
 	logger.new_entry.accel_lat		= accel_data.accel_Lat;
 	logger.new_entry.accel_lon		= accel_data.accel_Lon;
 	logger.new_entry.baro_alt		= control.baro_alt;
 	logger.new_entry.v_batt			= get_dc_jack_voltage();
 	log_core_data(&logger.core_logger, &logger.new_entry);
-	
-	
-	/*
-	fprintf(logger,"%4.5f,",control.time);
-	fprintf(logger,"%0.4f,%0.4f,%0.4f,%0.4f,",control.u[0],control.u[1],control.u[2],control.u[3]);
-	fprintf(logger,"%1.3f,%1.3f,%2.4f,",control.pitch,control.roll,control.yaw[0]);
-	fprintf(logger,"%0.4f,%0.4f,%0.4f,",control.d_pitch_f,control.d_roll_f,control.d_yaw);
-	fprintf(logger,"%0.4f,%2.2f,%2.2f,%2.4f,%2.4f,",control.throttle,setpoint.pitch_ref,setpoint.roll_ref,setpoint.yaw_ref[0],setpoint.yaw_rate_ref[0]);
-	fprintf(logger,"%1.3f,",setpoint.filt_pitch_ref);
-	fprintf(logger,"%0.4f,%0.4f,%0.4f,",control.upitch,control.uroll,control.uyaw);
-	fprintf(logger,"%1.1f,%f,%f,",setpoint.Aux,control.lon_error,control.lat_error);
-	fprintf(logger,"%2.3f,",control.yaw[0]+control.initial_yaw);
-	fprintf(logger,"%f,%f,",X_state_Lat1->data[0],X_state_Lon1->data[0]);
-	fprintf(logger,"%f,%f,",accel_data.accel_Lat,accel_data.accel_Lon);
-	fprintf(logger,"\n");	
-	*/
-	
-
 	
 		//Print some stuff
 		printf("\r ");
@@ -541,6 +523,21 @@ int flight_core(void * ptr){
 	
 int main(int argc, char *argv[]){
 
+	int in;
+	while ((in = getopt(argc, argv, "d")) != -1)
+	{
+		switch (in){
+			case 'd': 
+				DEBUG_MODE = 1;
+				printf("Running in Debug mode, assumes no battery plugged in \n");
+				break;	
+			default:
+				printf("Invalid Argument \n");
+				return -1;
+				break;
+			}
+	} 
+ 
 	//Initialize some cape and beaglebone hardware
 	if(initialize_cape()){
 		printf("ERROR: failed to initialize_cape\n");
@@ -586,12 +583,13 @@ int main(int argc, char *argv[]){
 	//Initialize the remote controller
 		initialize_dsm2MS();
 	
-	#ifndef DEBUG
-	if(ready_check(&control)){
-		printf("Exiting Program \n");
-		return -1;
-	} //Toggle the kill switch a few times to signal it's ready
-	#endif
+	if(!DEBUG_MODE)
+	{	
+		if(ready_check(&control)){
+			printf("Exiting Program \n");
+			return -1;
+		} //Toggle the kill switch a few times to signal it's ready
+	}
 	
 	
 	// start a core_log and logging thread
@@ -618,9 +616,11 @@ int main(int argc, char *argv[]){
 	pthread_create(&led_thread, NULL, LED_thread, (void*) &GPS_ready);
 	
 	
-	//Spawn the Kalman Filter Thread
-	pthread_create(&kalman_thread, NULL , kalman_filter, (void*) NULL);
-	
+	//Spawn the Kalman Filter Thread if GPS is running
+	if (GPS_data.GPS_init_check == 0)
+	{
+		pthread_create(&kalman_thread, NULL , kalman_filter, (void*) NULL);
+	}
 	//Give the ESCs a zero command before starting to prevent going into calibration
 	//
 	disable_servo_power_rail();
@@ -643,35 +643,39 @@ int main(int argc, char *argv[]){
 		imu_err_count++;
 		if (imu_err_count > 3)
 		{
-			fprintf(logger.Error_logger,"Error! IMU read failed for more than 3 consecutive timesteps \n");
+			fprintf(logger.Error_logger,"Error! IMU read failed for more than 3 consecutive timesteps time = %f\n",control.time);
 		}
 	}
 	flight_core_running = 0;
 	
-	//stop_core_log(&logger.core_logger);// finish writing core_log
+	stop_core_log(&logger.core_logger);// finish writing core_log
 	
 	//Join the threads for a safe process shutdown
-	join_GPS_thread(&GPS_data);
-	printf("GPS thread joined\n");
-	pthread_join(kalman_thread, NULL);
-	printf("Kalman thread joined\n");
+	if(GPS_data.GPS_init_check == 0)
+	{
+		join_GPS_thread(&GPS_data);
+		printf("GPS thread joined\n");
+		pthread_join(kalman_thread, NULL);
+		printf("Kalman thread joined\n");
+	}
 	pthread_join(led_thread, NULL);
 	printf("LED thread joined\n");
 	pthread_join(core_logging_thread, NULL);
 	printf("Logging thread joined\n");
 	  
-	// Close the log files
-	close(GPS_data.GPS_file);
-	fclose(logger.GPS_logger);
-	
 	static char* StateStrings[] = {	"UNINITIALIZED", "RUNNING", 
 									"PAUSED", "EXITING" };
 	fprintf(logger.Error_logger,"Exiting program, system state is %s\n", StateStrings[get_state()]);
 	fflush(stdout);
-	cleanup_cape();
+
+	// Close the log files
+	close(GPS_data.GPS_file);
+	fclose(logger.GPS_logger);
 	
+	flight_core_running = 1;
 	pthread_join(quiet_esc_thread, NULL);
 	printf("Quiet Esc thread joined\n");
+	cleanup_cape();
 	return 0;
 	}
 	
