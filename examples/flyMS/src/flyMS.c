@@ -47,7 +47,7 @@ filters_t				filters;			//Struct to contain all the filters
 accel_data_t 			accel_data;			//A struct which is given to kalman.c
 logger_t				logger;
 tranform_matrix_t		transform;
-uint8_t 				imu_err_count;
+uint16_t 				imu_err_count;
 imu_data_t				imu_data;			//Struct to relay all IMU info from driver to here
 float 					accel_bias[3] = {LAT_ACCEL_BIAS, LON_ACCEL_BIAS, ALT_ACCEL_BIAS};
 float 					yaw_offset[3] = {0, 0, YAW_OFFSET};
@@ -641,9 +641,9 @@ int main(int argc, char *argv[]){
 	while (get_state() != EXITING) {
 		usleep(5000);
 		imu_err_count++;
-		if (imu_err_count > 3)
+		if (imu_err_count == 3 || imu_err_count % 50 == 0)
 		{
-			fprintf(logger.Error_logger,"Error! IMU read failed for more than 3 consecutive timesteps time = %f\n",control.time);
+			fprintf(logger.Error_logger,"Error! IMU read failed for more than 3 consecutive timesteps. time: = %f number of missed reads: %u\n",control.time,imu_err_count);
 		}
 	}
 	flight_core_running = 0;
