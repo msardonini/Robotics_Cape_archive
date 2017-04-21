@@ -6,6 +6,18 @@
 //Coordinate system transformations matrices
 
 
+#define PITCH_ROLL_KP 5 
+#define PITCH_ROLL_KI 2
+#define PITCH_ROLL_KD 0.175
+
+
+#define PITCH_ROLL_RATE_KP 0.015   //0.0285
+#define PITCH_ROLL_RATE_KD 0.00155 //.00175
+
+#define YAW_KP 0.5 //0.6
+#define YAW_KD 0.05
+
+
 
 int ready_check(control_variables_t *control){
 	//Toggle the kill switch to get going, to ensure controlled take-off
@@ -150,20 +162,19 @@ void* quietEscs(void *ptr){
 int initialize_filters(filters_t *filters){
 
 	
-	filters->pitch_PD = generatePID(5, 6, 0.1, 0.15, 0.005);
-	filters->roll_PD  = generatePID(5, 6, 0.1, 0.15, 0.005);
+	filters->pitch_PD = generatePID(PITCH_ROLL_KP, PITCH_ROLL_KI, PITCH_ROLL_KD, 0.15, DT);
+	filters->roll_PD  = generatePID(PITCH_ROLL_KP, PITCH_ROLL_KI, PITCH_ROLL_KD, 0.15, DT);
 	//filters->yaw_PD   = generatePID(YAW_KP,		  0, YAW_KD,	    0.15, 0.005);
 
 	//PD Controller (I is done manually)
-	filters->pitch_rate_PD = generatePID(PITCH_ROLL_KP, 0, PITCH_ROLL_KD, 0.15, 0.005);
-	filters->roll_rate_PD  = generatePID(PITCH_ROLL_KP, 0, PITCH_ROLL_KD, 0.15, 0.005);
-	filters->yaw_rate_PD   = generatePID(YAW_KP,		  0, YAW_KD,	    0.15, 0.005);
+	filters->pitch_rate_PD = generatePID(PITCH_ROLL_RATE_KP, 0, PITCH_ROLL_RATE_KD, 0.15, DT);
+	filters->roll_rate_PD  = generatePID(PITCH_ROLL_RATE_KP, 0, PITCH_ROLL_RATE_KD, 0.15, DT);
+	filters->yaw_rate_PD   = generatePID(YAW_KP,		  0, YAW_KD,	    0.15, DT);
 	
 	//Gains on Low Pass Filter for raw gyroscope output
 	
-	// Butterworth Filter 4th order 0.3 cutoff 
-	//float num[5] = {0.0186, 0.0743, 0.1114, 0.0743, 0.0186}; 
-	//float den[5] = { 1.0000, -1.5704, 1.2756, -0.4844, 0.0762};
+	filters->altitudeHoldPID  = generatePID(.05,		  .005,  .002,	    0.15, DT);
+	
 	
 	//elliptic filter 10th order 0.25 dB passband ripple 80 dB min Cutoff 0.4 cutoff frq
 	float num[11] = {   0.003316345545497,   0.006003204398448,   0.015890122416480,   0.022341342884745,   0.031426841006402,
@@ -186,6 +197,11 @@ int initialize_filters(filters_t *filters){
 
 	filters->LPF_Accel_Lat = initialize_filter(5, num3, den3);							
 	filters->LPF_Accel_Lon = initialize_filter(5, num3, den3);		
+
+	//ellip filter, 5th order .5 pass 70 stop .05 cutoff
+	float baro_num[6] = {0.000618553374672,  -0.001685890697737,   0.001077182625629,   0.001077182625629,  -0.001685890697737,   0.000618553374672};
+	float baro_den[6] =	{1.000000000000000,  -4.785739467762915,   9.195509273069447,  -8.866262182166356,   4.289470039368545,  -0.832957971903594};
+	filters->LPF_baro_alt = initialize_filter(5, baro_num, baro_den);	
 	
 	//Gains on Low Pass Filter for Yaw Reference		
 	float num2[4] = {  0.0317,    0.0951,    0.0951,    0.0317};

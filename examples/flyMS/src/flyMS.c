@@ -1,6 +1,17 @@
-	// flyMS.c Control Program to fly quadcopter
+// flyMS.c Control Program to fly quadcopter
 // By Michael Sardonini, with help from James Strawson
 
+
+
+#define LAT_ACCEL_BIAS -0.0177
+#define LON_ACCEL_BIAS  0.0063
+#define ALT_ACCEL_BIAS  0.0000
+#define YAW_OFFSET	  	1.106
+
+
+
+#define PITCH_ROLL_RATE_KI .05
+#define YAW_KI .05
 
 
 #include <errno.h>
@@ -21,15 +32,6 @@
 #include "logger.h"
 #include "flyMS.h"
 
-
-//#define DEBUG
-
-#define LAT_ACCEL_BIAS -0.0177
-#define LON_ACCEL_BIAS  0.0063
-#define ALT_ACCEL_BIAS  0.0000
-#define YAW_OFFSET	  	1.106
-
- 
 
 int flight_core(void * ptr);
 //void* kalman_filter(void*ptr);
@@ -73,7 +75,7 @@ int flight_core(void * ptr){
 	//Initialize some variables if it is the first iteration
 	if(First_Iteration){
 		clock_gettime(CLOCK_MONOTONIC, &function_control.start_time); //Set the reference time to the first iteration
-		setpoint.Aux = 1; control.kill_switch[0]=1;
+		setpoint.Aux[0] = 1; control.kill_switch[0]=1;
 		function_control.dsm2_timeout=0;
 		X_state_Lat1 = get_lat_state();
 		X_state_Lon1 = get_lon_state();	
@@ -144,6 +146,23 @@ int flight_core(void * ptr){
 	}
 	
 	/**********************************************************
+	*           Read the Barometer for Altitude				  *
+	**********************************************************/	
+	i1++;
+	if (i1 == 8) // Only read the barometer at 25Hz
+	{
+		// perform the i2c reads to the sensor, this takes a bit of time
+		if(read_barometer()<0){
+			printf("\rERROR: Can't read Barometer");
+			fflush(stdout);
+		}
+		i1=0;
+	}
+	
+	control.baro_alt = update_filter(filters.LPF_baro_alt,bmp_get_altitude_m() - initial_alt);
+
+	
+	/**********************************************************
 	*           Read the RC Controller for Commands           *
 	**********************************************************/
 	
@@ -153,11 +172,7 @@ int flight_core(void * ptr){
 		//Reset the timout counter back to zero
 		function_control.dsm2_timeout=0;
 		
-		//Set the throttle
-		control.throttle=(get_dsm2_ch_normalizedMS(1)+1)*0.5*(MAX_THROTTLE-MIN_THROTTLE)+MIN_THROTTLE;
-		
-		//Keep the aircraft at a constant height while making manuevers 
-		control.throttle *= 1/(cos(control.pitch)*cos(control.roll));
+
 		
 		//Set Yaw, RC Controller acts on Yaw velocity, save a history for integration
 		setpoint.yaw_rate_ref[1]=setpoint.yaw_rate_ref[0];		
@@ -172,21 +187,43 @@ int flight_core(void * ptr){
 		control.kill_switch[0]=get_dsm2_ch_normalizedMS(5)/2;
 		
 		//Auxillary Switch
-		setpoint.Aux=get_dsm2_ch_normalizedMS(6); 
+		setpoint.Aux[1] = setpoint.Aux[0];
+		setpoint.Aux[0]=get_dsm2_ch_normalizedMS(6); 
 		
-		if(setpoint.Aux>0 || 1){ //Remote Controlled Flight
-			
-			setpoint.roll_ref=-get_dsm2_ch_normalizedMS(2)*MAX_ROLL_RANGE;	//DSM2 Receiver is inherently positive to the left
-			setpoint.pitch_ref=get_dsm2_ch_normalizedMS(3)*MAX_PITCH_RANGE;
-			
-			//Convert from Drone Coordinate System to User Coordinate System
-			float P_R_MAG=pow(pow(setpoint.roll_ref,2)+pow(setpoint.pitch_ref,2),0.5);
-			float Theta_Ref=atan2f(setpoint.pitch_ref,setpoint.roll_ref);
-			setpoint.roll_ref =P_R_MAG*cos(Theta_Ref-control.yaw[0]+control.yaw_ref_offset);
-			setpoint.pitch_ref=P_R_MAG*sin(Theta_Ref-control.yaw[0]+control.yaw_ref_offset);
+		setpoint.roll_ref=-get_dsm2_ch_normalizedMS(2)*MAX_ROLL_RANGE;	//DSM2 Receiver is inherently positive to the left
+		setpoint.pitch_ref=get_dsm2_ch_normalizedMS(3)*MAX_PITCH_RANGE;
+		
+		//Convert from Drone Coordinate System to User Coordinate System
+		float P_R_MAG=pow(pow(setpoint.roll_ref,2)+pow(setpoint.pitch_ref,2),0.5);
+		float Theta_Ref=atan2f(setpoint.pitch_ref,setpoint.roll_ref);
+		setpoint.roll_ref =P_R_MAG*cos(Theta_Ref-control.yaw[0]+control.yaw_ref_offset);
+		setpoint.pitch_ref=P_R_MAG*sin(Theta_Ref-control.yaw[0]+control.yaw_ref_offset);
+
+			if(setpoint.Aux[0]>0)//Remote Controlled Flight
+		{ 
+			//Set the throttle
+			control.throttle=(get_dsm2_ch_normalizedMS(1)+1)*0.5*(MAX_THROTTLE-MIN_THROTTLE)+MIN_THROTTLE;
+		
+			//Keep the aircraft at a constant height while making manuevers 
+			control.throttle *= 1/(cos(control.pitch)*cos(control.roll));
+		
+			function_control.altitudeHold = 0;
 		}
-		else{ //Flight by GPS and/or Lidar
-			//control.alt_rate_ref=get_dsm2_ch_normalizedMS(1)*MAX_ALT_SPEED;
+		else  //Flight by GPS and/or Lidar and Barometer
+		{
+			setpoint.altitudeSetpointRate = get_dsm2_ch_normalizedMS(1) * MAX_ALT_SPEED;
+			
+			if(fabs(setpoint.altitudeSetpointRate - control.standing_throttle)<0.05)
+			{
+				setpoint.altitudeSetpointRate=0;
+			}
+			
+			//Detect if this is the first iteration switching to controlled flight
+			if (setpoint.Aux[1] > 0) 
+			{
+				function_control.altitudeHoldFirstIteration = 1;
+			}
+			function_control.altitudeHold = 1;
 		}
 	}
 	else{ //check to make sure too much time hasn't gone by since hearing the RC
@@ -206,7 +243,7 @@ int flight_core(void * ptr){
 	if(DEBUG_MODE)
 	{
 		control.throttle = MIN_THROTTLE;
-		setpoint.Aux = 0;
+		setpoint.Aux[0] = 0;
 		setpoint.roll_ref = 0;
 		setpoint.pitch_ref = 0;
 		setpoint.yaw_rate_ref[0] = 0;
@@ -222,6 +259,21 @@ int flight_core(void * ptr){
  
 //	float throttle_compensation = 1 / cos(control.roll);
 //	throttle_compensation *= 1 / cos(control.pitch);		
+
+	if(function_control.altitudeHold)
+	{
+		if(function_control.altitudeHoldFirstIteration)
+		{
+			control.standing_throttle = control.throttle;
+			setpoint.altitudeSetpoint = control.baro_alt;
+			function_control.altitudeHoldFirstIteration = 0;
+		}
+        setpoint.altitudeSetpoint=setpoint.altitudeSetpoint+(setpoint.altitudeSetpointRate)*DT;
+
+		control.uthrottle = update_filter(filters.altitudeHoldPID, setpoint.altitudeSetpoint - control.baro_alt);
+		control.throttle = control.uthrottle + control.standing_throttle;
+		
+	}
 
 	
 		
@@ -297,6 +349,7 @@ int flight_core(void * ptr){
 	
 	setpoint.yaw_ref[1]=setpoint.yaw_ref[0];
 	setpoint.yaw_ref[0]=setpoint.yaw_ref[1]+(setpoint.yaw_rate_ref[0]+setpoint.yaw_rate_ref[1])*DT/2;
+
 	
 	control.uyaw = update_filter(filters.yaw_rate_PD,setpoint.yaw_ref[0]-control.yaw[0]);
 	
@@ -328,8 +381,8 @@ int flight_core(void * ptr){
 		control.dpitch_err_integrator += control.upitch * DT;
 		control.dyaw_err_integrator += control.uyaw * DT;		
 		
-		control.upitch+=PITCH_ROLL_KI * control.dpitch_err_integrator;
-		control.uroll +=PITCH_ROLL_KI * control.droll_err_integrator;
+		control.upitch+=PITCH_ROLL_RATE_KI * control.dpitch_err_integrator;
+		control.uroll +=PITCH_ROLL_RATE_KI * control.droll_err_integrator;
 		control.uyaw+=YAW_KI * control.dyaw_err_integrator;
 	}
 	
@@ -391,23 +444,8 @@ int flight_core(void * ptr){
 			set_state(EXITING);
 		}
 	}	
-	
-	
-	i1++;
-	if (i1 == 8) // Only read the barometer at 25Hz
-	{
-		// perform the i2c reads to the sensor, this takes a bit of time
-		if(read_barometer()<0){
-			printf("\rERROR: Can't read Barometer");
-			fflush(stdout);
-		}
-		i1=0;
-	}
-	
-	control.baro_alt = bmp_get_altitude_m() - initial_alt;
 
-	fflush(stdout);
-	
+	fflush(stdout);	
 	
 	clock_gettime(CLOCK_MONOTONIC, &function_control.log_time);
 	control.time=(float)(function_control.log_time.tv_sec - function_control.start_time.tv_sec) + 
@@ -433,7 +471,7 @@ int flight_core(void * ptr){
 	logger.new_entry.roll_ref		= setpoint.roll_ref;
 	logger.new_entry.yaw_ref		= setpoint.yaw_ref[0];
 	logger.new_entry.yaw_rate_ref	= setpoint.yaw_rate_ref[0];
-	logger.new_entry.Aux			= setpoint.Aux;
+	logger.new_entry.Aux			= setpoint.Aux[0];
 	logger.new_entry.lat_error		= control.lat_error;
 	logger.new_entry.lon_error		= control.lon_error;
 	if (X_state_Lat1->initialized)
@@ -458,18 +496,18 @@ int flight_core(void * ptr){
 	//	printf(" U2: %2.2f ",control.u[1]);
 	//	printf(" U3:  %2.2f ",control.u[2]);
 	//	printf(" U4: %2.2f ",control.u[3]);	
-	//	printf(" TH %2.2f ", control.throttle);
-	//	printf("Aux %2.1f ", setpoint.Aux);
+		printf(" TH %2.2f ", control.throttle);
+		printf("Aux %2.1f ", setpoint.Aux[0]);
 	//	printf("function: %f",get_dsm2_ch_normalizedMS(6));
 	//	printf("num wraps %d ",control.num_wraps);
-	//	printf(" Pitch_ref %2.2f ", setpoint.filt_pitch_ref);
+		printf(" Pitch_ref %2.2f ", setpoint.filt_pitch_ref);
 	//	printf(" Roll_ref %2.2f ", setpoint.filt_roll_ref);
 	//	printf(" Yaw_ref %2.2f ", setpoint.yaw_ref[0]);
 	//	printf(" Pitch %1.2f ", control.pitch);
 	//	printf(" Roll %1.2f ", control.roll);
-		printf(" Yaw %2.3f ", control.yaw[0]); 
-		printf(" DPitch %1.2f ", control.d_pitch_f); 
-		printf(" DRoll %1.2f ", control.d_roll_f);
+	//	printf(" Yaw %2.3f ", control.yaw[0]); 
+	//	printf(" DPitch %1.2f ", control.d_pitch_f); 
+	//	printf(" DRoll %1.2f ", control.d_roll_f);
 	//	printf(" DYaw %2.3f ", control.d_yaw); 	
 	//	printf(" uyaw %2.3f ", control.upitch); 		
 	//	printf(" uyaw %2.3f ", control.uroll); 		

@@ -16,13 +16,7 @@
 #define BMP_CHECK_HZ	1
 
 
-#define PITCH_ROLL_KP 0.015   //0.0285
-#define PITCH_ROLL_KI .5
-#define PITCH_ROLL_KD 0.00155 //.00175
 
-#define YAW_KP 0.5 //0.6
-#define YAW_KI .05
-#define YAW_KD 0.05
 
 
 
@@ -38,6 +32,7 @@
 #define MAX_ROLL_COMPONENT 0.25
 #define MAX_YAW_COMPONENT 0.25
 #define DEG_TO_RAD 0.01745
+#define MAX_ALT_SPEED 0.2 //in meters/second
 
 /************************** Orientation Matrix Constants *****************************/	
 #define cR1 cos(roll_offset)
@@ -109,7 +104,7 @@ typedef struct control_variables_t{
 	float	droll_err_integrator;
 	float	dpitch_err_integrator;
 	float	dyaw_err_integrator;
-	float 	uyaw, upitch, uroll;				// Controller effort for each state variable
+	float 	uyaw, upitch, uroll, uthrottle;		// Controller effort for each state variable
 	float	u[4]; 								// Duty Cycle to send to each motor
 	float	time; 								// Time since execution of the program
 	float	yaw_ref_offset;
@@ -127,8 +122,10 @@ typedef struct setpoint_t{
 	float	pitch_ref, roll_ref, yaw_ref[2];	// Reference (Desired) Position
 	float	filt_pitch_ref, filt_roll_ref;		// LPF of pitch and roll (because they are a func of yaw)
 	float	yaw_rate_ref[2];
-	float	Aux;
+	float	Aux[2];
 	double	lat_setpoint, lon_setpoint;			// Controller Variables for Autonomous Flight
+	float	altitudeSetpointRate;
+	float	altitudeSetpoint;
 }setpoint_t;
 
 
@@ -147,6 +144,8 @@ typedef struct function_control_t{
 	int					yaw_err_timout;						//Reset Yaw Error if landed for more than 1 second
 	int					integrator_reset;
 	int					integrator_start;
+	uint8_t				altitudeHold;
+	uint8_t				altitudeHoldFirstIteration;
 	pthread_mutex_t 	lock;
 	timespec 			start_time, log_time; //Some Structures to use to keep track of time during flight
 	}function_control_t;
@@ -166,17 +165,19 @@ typedef struct filters_t{
 	digital_filter_t			*pitch_PD;
 	digital_filter_t			*roll_PD;
 	digital_filter_t			*yaw_PD;
-	digital_filter_t         *LPF_d_pitch;
-	digital_filter_t         *LPF_d_roll;
-	digital_filter_t         *LPF_d_yaw;
-	digital_filter_t         *LPF_Yaw_Ref_P;
-	digital_filter_t         *LPF_Yaw_Ref_R;
+	digital_filter_t         	*LPF_d_pitch;
+	digital_filter_t         	*LPF_d_roll;
+	digital_filter_t         	*LPF_d_yaw;
+	digital_filter_t         	*LPF_Yaw_Ref_P;
+	digital_filter_t        	 *LPF_Yaw_Ref_R;
 	digital_filter_t			*Outer_Loop_TF_pitch;
 	digital_filter_t			*Outer_Loop_TF_roll;
-	digital_filter_t 		*LPF_Accel_Lat;
-	digital_filter_t 		*LPF_Accel_Lon;
+	digital_filter_t 			*LPF_Accel_Lat;
+	digital_filter_t 			*LPF_Accel_Lon;
 	digital_filter_t			*LPF_pitch;
 	digital_filter_t			*LPF_roll;	
+	digital_filter_t			*altitudeHoldPID;
+	digital_filter_t			*LPF_baro_alt;
 }filters_t;
 
 typedef struct led_thread_t{
