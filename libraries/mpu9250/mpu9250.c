@@ -13,6 +13,7 @@
 #include "mpu9250_defs.h"
 #include "dmp_firmware.h"
 #include "dmpKey.h"
+#include <inttypes.h>
 //#include "/root/Robotics_Cape/examples/flyMS/flight_defs.h"
 
 // uncomment #define DEBUG for helpful debug messages
@@ -732,11 +733,24 @@ int initialize_imu_dmp(imu_data_t *data, imu_config_t conf, void* ptr){
 	}
 
 	//check the who am i register to make sure the chip is alive
-	if(i2c_read_byte(IMU_BUS, WHO_AM_I_MPU9250, &c)<0){
-		printf("i2c_read_byte failed\n");
-		i2c_release_bus(IMU_BUS);
+	int i = 0, check = 0;
+	for(i = 0; i < 50000; i++)
+	{
+		if(i2c_read_byte(IMU_BUS, WHO_AM_I_MPU9250, &c)>=0){
+			check = 1;
+			break;
+		}
+		usleep(100);
+	}
+	if (check == 0) 
+	{
+		printf("i2c_read_bytes failed\n");
 		return -1;
-	} if(c!=0x71){
+	} else
+	{
+		printf("i2c_read_bytes succeded\n");
+	}
+	if(c!=0x71){
 		printf("mpu9250 WHO AM I register should return 0x71\n");
 		printf("WHO AM I returned: 0x%x\n", c);
 		i2c_release_bus(IMU_BUS);
@@ -1414,10 +1428,15 @@ int mpu_set_dmp_state(unsigned char enable){
 * read in the IMU data, and call the user-defined interrupt function if set.
 *******************************************************************************/
 void* imu_interrupt_handler(void* ptr){ 
+	FILE **Error_logger = (FILE**)ptr;
+	last_interrupt_timestamp_micros = micros_since_epoch();
+	
+	usleep(50000);
+	fprintf(*Error_logger,"This is a test print from mpu9250\n\n");
 	struct pollfd fdset[1];
 	int ret;
 	char buf[64];
-	int first_run = 1;
+	int first_run = 1, ret_poll = 0;
 	int imu_gpio_fd = gpio_fd_open(IMU_INTERRUPT_PIN);
 	if(imu_gpio_fd == -1){
 		printf("ERROR: can't open IMU_INTERRUPT_PIN gpio fd\n");
@@ -1430,34 +1449,53 @@ void* imu_interrupt_handler(void* ptr){
 	mpu_reset_fifo();
 	while(get_state()!=EXITING && shutdown_interrupt_thread != 1) {
 		// system hangs here until IMU FIFO interrupt
-		poll(fdset, 1, IMU_POLL_TIMEOUT); 
-		if (fdset[0].revents & POLLPRI) {
-			lseek(fdset[0].fd, 0, SEEK_SET);  
-			read(fdset[0].fd, buf, 64);
-			
-			// interrupt received, mark the timestamp
-			last_interrupt_timestamp_micros = micros_since_epoch();
-			
-			// try to load fifo no matter the claim bus state
-			if(i2c_get_in_use_state(IMU_BUS)){
-				printf("WARNING: Something has claimed the I2C bus when an\n");
-				printf("IMU interrupt was received. Reading IMU anyway.\n");
+		ret_poll = poll(fdset, 1, IMU_POLL_TIMEOUT);
+		if (ret_poll > 0)
+		{
+			if (fdset[0].revents & POLLPRI) {
+				lseek(fdset[0].fd, 0, SEEK_SET);  
+				read(fdset[0].fd, buf, 64);
+				
+				
+				/*if (micros_since_last_interrupt() > 7500)
+				{
+					fprintf(*Error_logger,"Error! %" PRIu64 " usec since last IMU read\n",  micros_since_last_interrupt());
+					printf("micros %" PRIu64 "\n", micros_since_last_interrupt());
+					fflush(stdout);
+				}*/
+
+				// interrupt received, mark the timestamp
+				
+				// try to load fifo no matter the claim bus state
+				if(i2c_get_in_use_state(IMU_BUS)){
+					printf("WARNING: Something has claimed the I2C bus when an\n");
+					printf("IMU interrupt was received. Reading IMU anyway.\n");
+				}
+				i2c_claim_bus(IMU_BUS);
+//				last_interrupt_timestamp_micros = micros_since_epoch();
+				ret = read_dmp_fifo();
+	//			printf("micros %" PRIu64 "\n", micros_since_last_interrupt()); 
+				i2c_release_bus(IMU_BUS);
+				
+				// record if it was successful or not
+				if (ret==0) last_read_successful=1;
+				else last_read_successful=0;
+				
+				
+				// call the user function if not the first run
+				if(first_run == 1){
+					first_run = 0;
+				}
+				else if(interrupt_running){
+					 imu_interrupt_func( ptr); 
+				}
 			}
-			i2c_claim_bus(IMU_BUS);
-			ret = read_dmp_fifo();
-			i2c_release_bus(IMU_BUS);
-			
-			// record if it was successful or not
-			if (ret==0) last_read_successful=1;
-			else last_read_successful=0;
-			
-			// call the user function if not the first run
-			if(first_run == 1){
-				first_run = 0;
-			}
-			else if(interrupt_running){
-				 imu_interrupt_func( ptr); 
-			}
+		}
+		else if (ret_poll == 0)
+		{
+			fprintf(*Error_logger,"Error! Poll timeout, %" PRIu64 " usec since last IMU read\n",  micros_since_last_interrupt());
+		//	printf("micros %" PRIu64 "\n", micros_since_last_interrupt());
+			fflush(stdout);
 		}
 	}
 	#ifdef DEBUG
@@ -1498,6 +1536,9 @@ int stop_imu_interrupt_func(){
 * errors are detected then this function tries some i2c transfers a second time.
 *******************************************************************************/
 int read_dmp_fifo(){
+	
+				
+				
     unsigned char raw[MAX_FIFO_BUFFER];
 	long quat_q14[4], quat[4], quat_mag_sq;\
 	int16_t mag_adc[3];
@@ -1551,7 +1592,7 @@ int read_dmp_fifo(){
 		// mpu_reset_fifo();
 		// return -1;
 				
-		usleep(2500);
+		usleep(500);
 		if (i2c_read_word(IMU_BUS, FIFO_COUNTH, &fifo_count)<0){
 			if(config.show_warnings){
 				printf("fifo_count i2c error: %s\n",strerror(errno));
@@ -1592,8 +1633,10 @@ int read_dmp_fifo(){
 	}
 	
 
+	//last_interrupt_timestamp_micros = micros_since_epoch();
 	// read it in!
     ret = i2c_read_bytes(IMU_BUS, FIFO_R_W, fifo_count, &raw[0]);
+	//printf("micros %" PRIu64 "\n", micros_since_last_interrupt());
 	if(ret<0){
 		// if i2c_read returned -1 there was an error, try again
 		ret = i2c_read_bytes(IMU_BUS, FIFO_R_W, fifo_count, &raw[0]);
@@ -1685,6 +1728,9 @@ int read_dmp_fifo(){
 	data_ptr->dmp_quat[QUAT_X] = (float)quat[QUAT_X];
 	data_ptr->dmp_quat[QUAT_Y] = (float)quat[QUAT_Y];
 	data_ptr->dmp_quat[QUAT_Z] = (float)quat[QUAT_Z];
+	
+	
+	
 	// fill in euler angles to the data struct
 	normalizeQuaternion(data_ptr->dmp_quat);
 	quaternionToTaitBryan(data_ptr->dmp_quat, data_ptr->dmp_TaitBryan);

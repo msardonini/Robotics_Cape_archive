@@ -87,7 +87,7 @@ int flight_core(void * ptr){
 		}
 
 	//Keep all other threads from interfering from this point until unlock
-	pthread_mutex_lock(&function_control.lock);
+	//pthread_mutex_lock(&function_control.lock);
 
 	/**********************************************************
 	*    Read the IMU for Rotational Position and Velocity    *
@@ -148,7 +148,7 @@ int flight_core(void * ptr){
 	/**********************************************************
 	*           Read the Barometer for Altitude				  *
 	**********************************************************/	
-	i1++;
+	/*i1++;
 	if (i1 == 8) // Only read the barometer at 25Hz
 	{
 		// perform the i2c reads to the sensor, this takes a bit of time
@@ -160,7 +160,7 @@ int flight_core(void * ptr){
 	}
 	
 	control.baro_alt = update_filter(filters.LPF_baro_alt,bmp_get_altitude_m() - initial_alt);
-
+	*/
 	
 	/**********************************************************
 	*           Read the RC Controller for Commands           *
@@ -240,7 +240,7 @@ int flight_core(void * ptr){
 		}
 	}
 	
-	if(DEBUG_MODE)
+	if(DEBUG_MODE && 0)
 	{
 		control.throttle = MIN_THROTTLE;
 		setpoint.Aux[0] = 0;
@@ -502,10 +502,10 @@ int flight_core(void * ptr){
 	//	printf("num wraps %d ",control.num_wraps);
 		printf(" Pitch_ref %2.2f ", setpoint.filt_pitch_ref);
 	//	printf(" Roll_ref %2.2f ", setpoint.filt_roll_ref);
-	//	printf(" Yaw_ref %2.2f ", setpoint.yaw_ref[0]);
+		printf(" Yaw_ref %2.2f ", setpoint.yaw_ref[0]);
 	//	printf(" Pitch %1.2f ", control.pitch);
 	//	printf(" Roll %1.2f ", control.roll);
-	//	printf(" Yaw %2.3f ", control.yaw[0]); 
+		printf(" Yaw %2.3f ", control.yaw[0]); 
 	//	printf(" DPitch %1.2f ", control.d_pitch_f); 
 	//	printf(" DRoll %1.2f ", control.d_roll_f);
 	//	printf(" DYaw %2.3f ", control.d_yaw); 	
@@ -551,7 +551,7 @@ int flight_core(void * ptr){
 			GPS_data.pos_lon=GPS_data.meters_lon-control.initial_pos_lon;
 		}
 	}
-	pthread_mutex_unlock(&function_control.lock);
+	//pthread_mutex_unlock(&function_control.lock);
 		
 	
 		
@@ -593,11 +593,11 @@ int main(int argc, char *argv[]){
 	pthread_create(&quiet_esc_thread, NULL, quietEscs, &flight_core_running);
 	 
 	
-	
+	/*
 	if(initialize_barometer(OVERSAMPLE, INTERNAL_FILTER)<0){
 		printf("initialize_barometer failed\n");
 		return -1;
-	}
+	}*/
 	
 	
 	// set up IMU configuration
@@ -606,11 +606,13 @@ int main(int argc, char *argv[]){
 	imu_config.orientation = ORIENTATION_Z_UP;
 	imu_config.accel_fsr = A_FSR_2G;
 	imu_config.enable_magnetometer=1;
-	
+	/*
 	control_variables_t *ptr1; 
 	ptr1 = malloc(sizeof(control_variables_t));
 	ptr1->pitch = 20;
+	*/
 	
+	FILE **ptr1 = &logger.Error_logger;
 	// start imu
 	if(initialize_imu_dmp(&imu_data, imu_config, (void*)ptr1)){
 		printf("ERROR: can't talk to IMU, all hope is lost\n");

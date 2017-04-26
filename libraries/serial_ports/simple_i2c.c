@@ -27,6 +27,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <robotics_cape.h>
 #include <stdint.h> // for uint8_t types etc
+#include <inttypes.h> // for uint8_t types etc
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -42,6 +43,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define I2C2_FILE "/dev/i2c-1"
 #define MAX_I2C_LENGTH   128
 
+uint64_t micros_since_last_interrupti2c();
+uint64_t last_interrupt_timestamp_micros;
 /******************************************************************
 * struct i2c_t 
 * contains the current state of a bus.
@@ -79,10 +82,10 @@ int i2c_init(int bus, uint8_t devAddr){
 	i2c[bus].initialized = 1;
 	switch(bus){
 	case 1:
-		i2c[bus].file = open(I2C1_FILE, O_RDWR);
+		i2c[bus].file = open(I2C1_FILE, O_RDWR | O_NONBLOCK);
 		break;
 	case 2:
-		i2c[bus].file = open(I2C2_FILE, O_RDWR);
+		i2c[bus].file = open(I2C2_FILE, O_RDWR | O_NONBLOCK);
 		break;
 	default:
 		printf("i2c bus must be 1 or 2\n");
@@ -218,11 +221,42 @@ int i2c_read_bytes(int bus, uint8_t regAddr, uint8_t length,\
 	
 	// then read the response
 	//usleep(300);
-	ret = read(i2c[bus].file, data, length);
+		
+	// Initialize file descriptor sets
+	fd_set set;
+	FD_ZERO(&set);
+	FD_SET(i2c[bus].file, &set);
+
+	// Set timeout to 1.0 seconds
+	struct timeval timeout;
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 50;
+
+	// Wait for input to become ready or until the time out; the first parameter is
+	// 1 more than the largest file descriptor in any of the sets
+	if (select(i2c[bus].file + 1, &set ,NULL, NULL, &timeout) == 1)
+	{
+		last_interrupt_timestamp_micros = micros_since_epoch();
+		ret = read(i2c[bus].file, data, length);
+		printf("micros %" PRIu64 "\n", micros_since_last_interrupti2c());
+		// fd is ready for reading
+	}
+	else
+	{
+		// timeout or error
+		printf("timeout on i2c!! \n");
+		ret = -1;
+	}
+		
 
 	// return the in_use state to previous state.
 	i2c[bus].in_use = old_in_use;
     return ret;
+}
+
+
+uint64_t micros_since_last_interrupti2c(){
+	return micros_since_epoch() - last_interrupt_timestamp_micros;
 }
 
 /******************************************************************
