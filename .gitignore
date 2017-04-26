@@ -7,6 +7,7 @@
 .metadata
 bin/
 tmp/
+*.o
 *.tmp
 *.bak
 *.swp
