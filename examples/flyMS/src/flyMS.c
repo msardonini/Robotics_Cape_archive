@@ -681,9 +681,9 @@ int main(int argc, char *argv[]){
 	while (get_state() != EXITING) {
 		usleep(5000);
 		imu_err_count++;
-		if (imu_err_count == 3 || imu_err_count % 50 == 0)
+		if (imu_err_count == 5 || imu_err_count % 50 == 0)
 		{
-			fprintf(logger.Error_logger,"Error! IMU read failed for more than 3 consecutive timesteps. time: = %f number of missed reads: %u\n",control.time,imu_err_count);
+			fprintf(logger.Error_logger,"Error! IMU read failed for more than 5 consecutive timesteps. time: = %f number of missed reads: %u\n",control.time,imu_err_count);
 		}
 	}
 	flight_core_running = 0;
