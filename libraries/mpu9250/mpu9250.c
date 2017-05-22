@@ -17,7 +17,7 @@
 //#include "/root/Robotics_Cape/examples/flyMS/flight_defs.h"
 
 // uncomment #define DEBUG for helpful debug messages
-// #define DEBUG
+// #define DEBUGWHO
 
 // there should be 28 or 35 bytes in the FIFO if the magnetometer is disabled
 // or enabled.
@@ -161,8 +161,8 @@ int initialize_imu(imu_data_t *data, imu_config_t conf){
 		i2c_release_bus(IMU_BUS);
 		return -1;
 	}
-	if(c!=0x71){
-		printf("mpu9250 WHO AM I register should return 0x71\n");
+	if(c!=0x73){
+		printf("mpu9250 WHO AM I register should return 0x73\n");
 		printf("WHO AM I returned: 0x%x\n", c);
 		i2c_release_bus(IMU_BUS);
 		return -1;
@@ -733,25 +733,24 @@ int initialize_imu_dmp(imu_data_t *data, imu_config_t conf, void* ptr){
 	}
 
 	//check the who am i register to make sure the chip is alive
-	int i = 0, check = 0;
-	for(i = 0; i < 50000; i++)
+	int i = 0;
+	for(i = 0; i < 500; i++)
 	{
 		if(i2c_read_byte(IMU_BUS, WHO_AM_I_MPU9250, &c)>=0){
-			check = 1;
 			break;
 		}
 		usleep(100);
 	}
-	if (check == 0) 
+	/*if (check == 0) 
 	{
 		printf("i2c_read_bytes failed\n");
 		return -1;
 	} else
 	{
 		printf("i2c_read_bytes succeded\n");
-	}
-	if(c!=0x71){
-		printf("mpu9250 WHO AM I register should return 0x71\n");
+	}*/
+	if(c!=0x73){
+		printf("mpu9250 WHO AM I register should return 0x73\n");
 		printf("WHO AM I returned: 0x%x\n", c);
 		i2c_release_bus(IMU_BUS);
 		return -1;

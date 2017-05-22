@@ -272,8 +272,13 @@ int main(int argc, char *argv[]){
 		printf("ERROR: failed to initialize_cape\n");
 		return -1;
 	}
+	
+	FILE * Error_logger;
+	Error_logger = fopen("Error_logger.txt","w+");
+	
+	FILE **ptr = & Error_logger;
 	// now set up the imu for dmp interrupt operation
-	if(initialize_imu_dmp(&data, conf)){
+	if(initialize_imu_dmp(&data, conf,(void*)ptr)){
 		printf("initialize_imu_failed\n");
 		return -1;
 	}

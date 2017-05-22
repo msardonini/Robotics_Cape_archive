@@ -43,8 +43,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define I2C2_FILE "/dev/i2c-1"
 #define MAX_I2C_LENGTH   128
 
-uint64_t micros_since_last_interrupti2c();
-uint64_t last_interrupt_timestamp_micros;
+//uint64_t micros_since_last_interrupti2c();
+//uint64_t last_interrupt_timestamp_micros;
 /******************************************************************
 * struct i2c_t 
 * contains the current state of a bus.
@@ -236,9 +236,9 @@ int i2c_read_bytes(int bus, uint8_t regAddr, uint8_t length,\
 	// 1 more than the largest file descriptor in any of the sets
 	if (select(i2c[bus].file + 1, &set ,NULL, NULL, &timeout) == 1)
 	{
-		last_interrupt_timestamp_micros = micros_since_epoch();
+		//last_interrupt_timestamp_micros = micros_since_epoch();
 		ret = read(i2c[bus].file, data, length);
-		printf("micros %" PRIu64 "\n", micros_since_last_interrupti2c());
+		//printf("micros %" PRIu64 "\n", micros_since_last_interrupti2c());
 		// fd is ready for reading
 	}
 	else
@@ -254,10 +254,11 @@ int i2c_read_bytes(int bus, uint8_t regAddr, uint8_t length,\
     return ret;
 }
 
-
+/*
 uint64_t micros_since_last_interrupti2c(){
 	return micros_since_epoch() - last_interrupt_timestamp_micros;
 }
+*/
 
 /******************************************************************
 * i2c_read_byte
