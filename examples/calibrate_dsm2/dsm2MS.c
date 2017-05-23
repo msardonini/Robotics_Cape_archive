@@ -94,7 +94,6 @@ int is_new_dsm2_dataMS(){
 // #define DEBUG_DSM2
 void* uart4_checkerMS(void *ptr){
 	
-	printf("I'm a print \n");
 	//set up sart/stop bit and 115200 baud
 	struct termios config;
 	memset(&config,0,sizeof(config));
