@@ -9,7 +9,7 @@
 #include<pthread.h>
 #include<robotics_cape.h>
 #include "flight_defs.h"
-
+//#define DEBUG_DSM2
 
 
 // DSM2 Spektrum radio & UART4
@@ -26,21 +26,23 @@ int new_dsm2_flag;
 ////  DSM2  Spektrum  RC Stuff  
 int initialize_dsm2MS(){
 	//if calibration file exists, load it and start spektrum thread
-	FILE *cal;
-	char file_path[100];
+	
+	//FILE *cal;
+	//char file_path[100];
 
 	// construct a new file path string
-	strcpy (file_path, CONFIG_DIRECTORY);
-	strcat (file_path, DSM2_CAL_FILE);
+	//strcpy (file_path, CONFIG_DIRECTORY);
+	//strcat (file_path, DSM2_CAL_FILE);
 	
 	// open for reading
-	cal = fopen(file_path, "r");
-
+	//cal = fopen(file_path, "r");
+/*
 	if (cal == NULL) {
 		printf("\nDSM2 Calibration File Doesn't Exist Yet\n");
 		printf("Use calibrate_dsm2 example to create one\n");
 		return -1;
 	}
+	
 	else{
 		int i;
 		for(i=0;i<RC_CHANNELS;i++){
@@ -50,6 +52,7 @@ int initialize_dsm2MS(){
 		printf("DSM2 Calibration Loaded\n");
 	}
 	fclose(cal);
+	*/
 	pthread_t uart4_thread;
 	pthread_create(&uart4_thread, NULL, uart4_checkerMS, (void*) NULL);
 	printf("DSM2 Thread Started\n");
@@ -91,6 +94,7 @@ int is_new_dsm2_dataMS(){
 // #define DEBUG_DSM2
 void* uart4_checkerMS(void *ptr){
 	
+	printf("I'm a print \n");
 	//set up sart/stop bit and 115200 baud
 	struct termios config;
 	memset(&config,0,sizeof(config));
@@ -116,7 +120,6 @@ void* uart4_checkerMS(void *ptr){
 		printf("cannot set uart4 attributes\n");
 		return NULL;
 	}
-
 	while(get_state()!=EXITING){
 		char buf[64]; // large serial buffer to catch doubled up packets
 		int i,j;

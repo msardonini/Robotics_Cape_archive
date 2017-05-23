@@ -25,9 +25,10 @@ int rc_mins[RC_CHANNELS];
 int rc_maxes[RC_CHANNELS];
 int listening;
 
+
 void *listen_func(void *params){
 	//wait for data to start
-	printf("waiting for dsm2 connection");
+	printf("waiting for dsm2 connection\n");
 	while(!is_new_dsm2_dataMS()){
 		if(get_state()==EXITING || listening==0){
 			return 0;
