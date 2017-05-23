@@ -30,7 +30,9 @@
 #include "kalman.h"
 #include "gps.h"
 #include "logger.h"
+#include "config.h"
 #include "flyMS.h"
+
 
 
 int flight_core(void * ptr);
@@ -49,13 +51,11 @@ filters_t				filters;			//Struct to contain all the filters
 accel_data_t 			accel_data;			//A struct which is given to kalman.c
 logger_t				logger;
 tranform_matrix_t		transform;
+core_config_t 			flight_config;
 uint16_t 				imu_err_count;
 imu_data_t				imu_data;			//Struct to relay all IMU info from driver to here
 float 					accel_bias[3] = {LAT_ACCEL_BIAS, LON_ACCEL_BIAS, ALT_ACCEL_BIAS};
 float 					yaw_offset[3] = {0, 0, YAW_OFFSET};
-uint8_t 				DEBUG_MODE = 0;		//Run with arg -d to run in debug mode, assumes no battery connected
-
-
  
 int flight_core(void * ptr){
 	imu_err_count = 0;
@@ -148,19 +148,20 @@ int flight_core(void * ptr){
 	/**********************************************************
 	*           Read the Barometer for Altitude				  *
 	**********************************************************/	
-	/*i1++;
-	if (i1 == 8) // Only read the barometer at 25Hz
-	{
-		// perform the i2c reads to the sensor, this takes a bit of time
-		if(read_barometer()<0){
-			printf("\rERROR: Can't read Barometer");
-			fflush(stdout);
+	if (flight_config.enable_barometer)
+	{		
+		i1++;
+		if (i1 == 8) // Only read the barometer at 25Hz
+		{
+			// perform the i2c reads to the sensor, this takes a bit of time
+			if(read_barometer()<0){
+				printf("\rERROR: Can't read Barometer");
+				fflush(stdout);
+			}
+			i1=0;
 		}
-		i1=0;
+		control.baro_alt = update_filter(filters.LPF_baro_alt,bmp_get_altitude_m() - initial_alt);
 	}
-	
-	control.baro_alt = update_filter(filters.LPF_baro_alt,bmp_get_altitude_m() - initial_alt);
-	*/
 	
 	/**********************************************************
 	*           Read the RC Controller for Commands           *
@@ -171,8 +172,6 @@ int flight_core(void * ptr){
 		
 		//Reset the timout counter back to zero
 		function_control.dsm2_timeout=0;
-		
-
 		
 		//Set Yaw, RC Controller acts on Yaw velocity, save a history for integration
 		setpoint.yaw_rate_ref[1]=setpoint.yaw_rate_ref[0];		
@@ -228,7 +227,7 @@ int flight_core(void * ptr){
 	}
 	else{ //check to make sure too much time hasn't gone by since hearing the RC
 		
-		if(!DEBUG_MODE)
+		if(!flight_config.enable_debug_mode)
 		{
 			function_control.dsm2_timeout=function_control.dsm2_timeout+1;
 			
@@ -240,7 +239,7 @@ int flight_core(void * ptr){
 		}
 	}
 	
-	if(DEBUG_MODE && 0)
+	if(flight_config.enable_debug_mode && 0)
 	{
 		control.throttle = MIN_THROTTLE;
 		setpoint.Aux[0] = 0;
@@ -424,7 +423,7 @@ int flight_core(void * ptr){
 
 	
 
-	if(!DEBUG_MODE)
+	if(!flight_config.enable_debug_mode)
 	{
 		//Send Commands to Motors
 		if(get_state()!=EXITING){
@@ -560,13 +559,28 @@ int flight_core(void * ptr){
 	
 	
 int main(int argc, char *argv[]){
+	
+	//Define some threads
+	pthread_t led_thread;
+	pthread_t kalman_thread;
+	pthread_t core_logging_thread;
+	pthread_t quiet_esc_thread;
 
+	// load flight_core settings
+	if(load_core_config(&flight_config)){
+		printf("WARNING: no configuration file found\n");
+		printf("loading default settings\n");
+		if(create_default_core_config_file(&flight_config)){
+			printf("Warning, can't write default flight_config file\n");
+		}
+	}
+	
 	int in;
 	while ((in = getopt(argc, argv, "d")) != -1)
 	{
 		switch (in){
 			case 'd': 
-				DEBUG_MODE = 1;
+				flight_config.enable_debug_mode = 1;
 				printf("Running in Debug mode, assumes no battery plugged in \n");
 				break;	
 			default:
@@ -574,7 +588,7 @@ int main(int argc, char *argv[]){
 				return -1;
 				break;
 			}
-	} 
+	}
  
 	//Initialize some cape and beaglebone hardware
 	if(initialize_cape()){
@@ -582,23 +596,27 @@ int main(int argc, char *argv[]){
 		return -1;
 	}	
 	
-	//Define some threads
-	pthread_t led_thread;
-	pthread_t kalman_thread;
-	pthread_t core_logging_thread;
-	pthread_t quiet_esc_thread;
-	//pthread_t barometer_alt_thread;
-	
 	uint8_t flight_core_running = 0;
 	pthread_create(&quiet_esc_thread, NULL, quietEscs, &flight_core_running);
-	 
+
+	if(flight_config.enable_barometer)
+	{
+		if(initialize_barometer(OVERSAMPLE, INTERNAL_FILTER)<0){
+			printf("initialize_barometer failed\n");
+			return -1;
+		}
+	}
 	
-	/*
-	if(initialize_barometer(OVERSAMPLE, INTERNAL_FILTER)<0){
-		printf("initialize_barometer failed\n");
-		return -1;
-	}*/
-	
+	if(flight_config.enable_logging)
+	{
+		// start a core_log and logging thread
+		if(start_core_log(&logger)<0){
+			printf("WARNING: failed to open a core_log file\n");
+		}
+		else{
+			pthread_create(&core_logging_thread, NULL, core_log_writer, &logger.core_logger);
+		}
+	}
 	
 	// set up IMU configuration
 	imu_config_t imu_config = get_default_imu_config();
@@ -606,18 +624,6 @@ int main(int argc, char *argv[]){
 	imu_config.orientation = ORIENTATION_Z_UP;
 	imu_config.accel_fsr = A_FSR_2G;
 	imu_config.enable_magnetometer=1;
-	/*
-	control_variables_t *ptr1; 
-	ptr1 = malloc(sizeof(control_variables_t));
-	ptr1->pitch = 20;
-	*/
-	// start a core_log and logging thread
-	if(start_core_log(&logger)<0){
-		printf("WARNING: failed to open a core_log file\n");
-	}
-	else{
-		pthread_create(&core_logging_thread, NULL, core_log_writer, &logger.core_logger);
-	}
 	
 	FILE **ptr1 = &logger.Error_logger;
 	// start imu
@@ -630,39 +636,35 @@ int main(int argc, char *argv[]){
 	//Initialize the remote controller
 	initialize_dsm2MS();
 	
-	if(!DEBUG_MODE)
+	if(!flight_config.enable_debug_mode)
 	{	
 		if(ready_check(&control)){
 			printf("Exiting Program \n");
 			return -1;
 		} //Toggle the kill switch a few times to signal it's ready
 	}
-	
-	
-
-	sleep(2); //wait for the IMU to level off	
 
 	init_rotation_matrix(&transform); //Initialize the rotation matrix from IMU to drone
 	initialize_filters(&filters);
 
 	//Start the GPS thread, flash the LED's if GPS has a fix
-	GPS_data.GPS_init_check=GPS_init(argc, argv,&GPS_data);
-	
-	
-	led_thread_t GPS_ready;
-	memset(&GPS_ready,0,sizeof(GPS_ready));
-	GPS_ready.GPS_fix_check = GPS_data.GPS_fix_check;
-	GPS_ready.GPS_init_check = GPS_data.GPS_init_check;
-	pthread_create(&led_thread, NULL, LED_thread, (void*) &GPS_ready);
-	
-	
-	//Spawn the Kalman Filter Thread if GPS is running
-	if (GPS_data.GPS_init_check == 0)
+	if(flight_config.enable_gps)
 	{
-		pthread_create(&kalman_thread, NULL , kalman_filter, (void*) NULL);
+		GPS_data.GPS_init_check=GPS_init(argc, argv,&GPS_data);
+		
+		led_thread_t GPS_ready;
+		memset(&GPS_ready,0,sizeof(GPS_ready));
+		GPS_ready.GPS_fix_check = GPS_data.GPS_fix_check;
+		GPS_ready.GPS_init_check = GPS_data.GPS_init_check;
+		pthread_create(&led_thread, NULL, LED_thread, (void*) &GPS_ready);
+		
+		//Spawn the Kalman Filter Thread if GPS is running
+		if (GPS_data.GPS_init_check == 0)
+		{
+			pthread_create(&kalman_thread, NULL , kalman_filter, (void*) NULL);
+		}
 	}
-	//Give the ESCs a zero command before starting to prevent going into calibration
-	//
+	
 	disable_servo_power_rail();
 	init_esc_hardware();	 
 	 
@@ -672,6 +674,8 @@ int main(int argc, char *argv[]){
 		printf("Error Lock init failed\n");
 	}
 		
+	sleep(2); //wait for the IMU to level off	
+
 	//Start the control program
 	flight_core_running = 1;
 	set_imu_interrupt_func(&flight_core);
