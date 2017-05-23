@@ -10,8 +10,8 @@
 
 
 
-#define PITCH_ROLL_RATE_KI .05
-#define YAW_KI .05
+#define PITCH_ROLL_RATE_KI .32
+#define YAW_KI .01
 
 
 #include <errno.h>
@@ -611,6 +611,13 @@ int main(int argc, char *argv[]){
 	ptr1 = malloc(sizeof(control_variables_t));
 	ptr1->pitch = 20;
 	*/
+	// start a core_log and logging thread
+	if(start_core_log(&logger)<0){
+		printf("WARNING: failed to open a core_log file\n");
+	}
+	else{
+		pthread_create(&core_logging_thread, NULL, core_log_writer, &logger.core_logger);
+	}
 	
 	FILE **ptr1 = &logger.Error_logger;
 	// start imu
@@ -619,9 +626,9 @@ int main(int argc, char *argv[]){
 		blink_led(RED, 5, 5);
 		return -1;
 	}
-
+	
 	//Initialize the remote controller
-		initialize_dsm2MS();
+	initialize_dsm2MS();
 	
 	if(!DEBUG_MODE)
 	{	
@@ -632,13 +639,6 @@ int main(int argc, char *argv[]){
 	}
 	
 	
-	// start a core_log and logging thread
-	if(start_core_log(&logger)<0){
-		printf("WARNING: failed to open a core_log file\n");
-	}
-	else{
-		pthread_create(&core_logging_thread, NULL, core_log_writer, &logger.core_logger);
-	}
 
 	sleep(2); //wait for the IMU to level off	
 

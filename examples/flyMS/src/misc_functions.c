@@ -6,16 +6,16 @@
 //Coordinate system transformations matrices
 
 
-#define PITCH_ROLL_KP 5 
-#define PITCH_ROLL_KI 2
-#define PITCH_ROLL_KD 0.175
+#define PITCH_ROLL_KP 6 
+#define PITCH_ROLL_KI 0
+#define PITCH_ROLL_KD 0
 
 
-#define PITCH_ROLL_RATE_KP 0.015   //0.0285
-#define PITCH_ROLL_RATE_KD 0.00155 //.00175
+#define PITCH_ROLL_RATE_KP 0.020   //0.0285
+#define PITCH_ROLL_RATE_KD 0.005 //.00175
 
-#define YAW_KP 0.5 //0.6
-#define YAW_KD 0.05
+#define YAW_KP 0.03 //0.6
+#define YAW_KD 0.00
 
 
 

@@ -217,3 +217,29 @@ pip-log.txt
 
 #Mr Developer
 .mr.developer.cfg
+Error_logger.txt
+examples/bare_minimum/bare_minimum
+examples/battery_monitor/battery_monitor
+examples/bind_dsm2/bind_dsm2
+examples/blink/blink
+examples/calibrate_dsm2/calibrate_dsm2MS
+examples/calibrate_escs/calibrate_escs
+examples/calibrate_gyro/calibrate_gyro
+examples/calibrate_mag/calibrate_mag
+examples/check_battery/check_battery
+examples/dsm2_passthrough/dsm2_passthrough
+examples/logger.txt
+examples/test_barometer/test_barometer
+examples/test_buttons/test_buttons
+examples/test_cape/test_cape
+examples/test_cpu_freq/test_cpu_freq
+examples/test_dmp/Error_logger.txt
+examples/test_dmp/test_dmp
+examples/test_dsm2/test_dsm2
+examples/test_encoders/test_encoders
+examples/test_filters/test_filters
+examples/test_imu/test_imu
+examples/test_initialization/test_initialization
+examples/test_motors/test_motors
+examples/test_servos/test_servos
+examples/uart_loopback/uart_loopback
