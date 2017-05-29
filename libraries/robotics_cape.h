@@ -16,6 +16,17 @@
 typedef struct timespec	timespec;
 typedef struct timeval timeval;
 
+
+#include <stdlib.h>
+#include <stdio.h>
+typedef struct debug_struct_t{
+        FILE ** Error_logger;
+        int  flag1;
+        int  flag2;
+}debug_struct_t;
+
+
+
 /*******************************************************************************
 * INITIALIZATION AND CLEANUP
 *

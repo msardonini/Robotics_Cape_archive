@@ -10,8 +10,8 @@
 
 
 
-#define PITCH_ROLL_RATE_KI .32
-#define YAW_KI .01
+#define PITCH_ROLL_RATE_KI .05
+#define YAW_KI .05
 
 
 #include <errno.h>
@@ -625,9 +625,15 @@ int main(int argc, char *argv[]){
 	imu_config.accel_fsr = A_FSR_2G;
 	imu_config.enable_magnetometer=1;
 	
-	FILE **ptr1 = &logger.Error_logger;
+	debug_struct_t debug_struct_real;
+	debug_struct_t *debug_struct = &debug_struct_real;
+	memset(&debug_struct_real,0,sizeof(debug_struct_t));
+	debug_struct->Error_logger = &logger.Error_logger;	
+//	memset(debug_struct->flag1,0,sizeof(int));	
+//	memset(debug_struct->flag2,0,sizeof(int));
+
 	// start imu
-	if(initialize_imu_dmp(&imu_data, imu_config, (void*)ptr1)){
+	if(initialize_imu_dmp(&imu_data, imu_config, (void*)debug_struct)){
 		printf("ERROR: can't talk to IMU, all hope is lost\n");
 		blink_led(RED, 5, 5);
 		return -1;
@@ -687,8 +693,11 @@ int main(int argc, char *argv[]){
 		imu_err_count++;
 		if (imu_err_count == 5 || imu_err_count % 50 == 0)
 		{
-			fprintf(logger.Error_logger,"Error! IMU read failed for more than 5 consecutive timesteps. time: = %f number of missed reads: %u\n",control.time,imu_err_count);
+			fprintf(logger.Error_logger,"Error! IMU read failed for more than 5 consecutive timesteps. time: = %f number of missed reads: %u, Error Flag %d \n",control.time,imu_err_count, debug_struct->flag2);
 		}
+
+		if(imu_err_count > 5) debug_struct->flag1=1;
+		else debug_struct->flag1 = 0;
 	}
 	flight_core_running = 0;
 	

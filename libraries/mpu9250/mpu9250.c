@@ -77,7 +77,7 @@ int dmp_enable_feature(unsigned short mask);
 int mpu_set_dmp_state(unsigned char enable);
 int set_int_enable(unsigned char enable);
 int dmp_set_interrupt_mode(unsigned char mode);
-int read_dmp_fifo();
+int read_dmp_fifo(debug_struct_t * debug_struct);
 int data_fusion();
 int load_gyro_offets();
 int load_mag_calibration();
@@ -161,8 +161,8 @@ int initialize_imu(imu_data_t *data, imu_config_t conf){
 		i2c_release_bus(IMU_BUS);
 		return -1;
 	}
-	if(c!=0x73){
-		printf("mpu9250 WHO AM I register should return 0x73\n");
+	if(c!=0x73 && c!=0x71){
+		printf("mpu9250 WHO AM I register should return 0x73 or 0x71\n");
 		printf("WHO AM I returned: 0x%x\n", c);
 		i2c_release_bus(IMU_BUS);
 		return -1;
@@ -749,8 +749,8 @@ int initialize_imu_dmp(imu_data_t *data, imu_config_t conf, void* ptr){
 	{
 		printf("i2c_read_bytes succeded\n");
 	}*/
-	if(c!=0x73){
-		printf("mpu9250 WHO AM I register should return 0x73\n");
+	if(c!=0x73 && c!= 0x71){
+		printf("mpu9250 WHO AM I register should return 0x73 or 0x71\n");
 		printf("WHO AM I returned: 0x%x\n", c);
 		i2c_release_bus(IMU_BUS);
 		return -1;
@@ -1427,11 +1427,12 @@ int mpu_set_dmp_state(unsigned char enable){
 * read in the IMU data, and call the user-defined interrupt function if set.
 *******************************************************************************/
 void* imu_interrupt_handler(void* ptr){ 
-	FILE **Error_logger = (FILE**)ptr;
+	debug_struct_t *debug_struct = (debug_struct_t *)ptr;
 	last_interrupt_timestamp_micros = micros_since_epoch();
 	
-	usleep(50000);
-	fprintf(*Error_logger,"This is a test print from mpu9250\n\n");
+	usleep(500000);
+	fprintf(*debug_struct->Error_logger,"This is a test print from mpu9250\n\n");
+	debug_struct->flag2 = 1;
 	struct pollfd fdset[1];
 	int ret;
 	char buf[64];
@@ -1447,6 +1448,18 @@ void* imu_interrupt_handler(void* ptr){
 	// keep running until the program closes
 	mpu_reset_fifo();
 	while(get_state()!=EXITING && shutdown_interrupt_thread != 1) {
+
+
+				// record if it was successful or not
+		if (debug_struct->flag1)
+                {
+                     fprintf(*debug_struct->Error_logger,"Read was not successful, inside while loop but outside poll \n");
+                     fflush(*debug_struct->Error_logger);
+                }				
+		
+		debug_struct->flag2 = 2;
+
+
 		// system hangs here until IMU FIFO interrupt
 		ret_poll = poll(fdset, 1, IMU_POLL_TIMEOUT);
 		if (ret_poll > 0)
@@ -1456,6 +1469,7 @@ void* imu_interrupt_handler(void* ptr){
 				read(fdset[0].fd, buf, 64);
 				
 				
+	debug_struct->flag2 = 3;
 				/*if (micros_since_last_interrupt() > 7500)
 				{
 					fprintf(*Error_logger,"Error! %" PRIu64 " usec since last IMU read\n",  micros_since_last_interrupt());
@@ -1470,17 +1484,36 @@ void* imu_interrupt_handler(void* ptr){
 					printf("WARNING: Something has claimed the I2C bus when an\n");
 					printf("IMU interrupt was received. Reading IMU anyway.\n");
 				}
+
+
+				// record if it was successful or not
+				if (debug_struct->flag1)
+                                {
+                                        fprintf(*debug_struct->Error_logger,"Read was not successful, before dmp_read_fifo \n");
+                                        fflush(*debug_struct->Error_logger);
+                                }				
+				
 				i2c_claim_bus(IMU_BUS);
 //				last_interrupt_timestamp_micros = micros_since_epoch();
-				ret = read_dmp_fifo();
+				debug_struct->flag2 = 4;
+				ret = read_dmp_fifo(debug_struct);
+				debug_struct->flag2 = 7;
 	//			printf("micros %" PRIu64 "\n", micros_since_last_interrupt()); 
 				i2c_release_bus(IMU_BUS);
 				
 				// record if it was successful or not
-				if (ret==0) last_read_successful=1;
-				else last_read_successful=0;
+				if (ret == 0 ) last_read_successful=1;
+		
+	  			else
+                                {
+                                        last_read_successful=0;
+                                }				
 				
-				
+				if (debug_struct->flag1)
+				{	
+                                        fprintf(*debug_struct->Error_logger,"Read was no successful, after dmp_read_fifo \n");
+                                        fflush(*debug_struct->Error_logger);
+				}
 				// call the user function if not the first run
 				if(first_run == 1){
 					first_run = 0;
@@ -1492,7 +1525,7 @@ void* imu_interrupt_handler(void* ptr){
 		}
 		else if (ret_poll == 0)
 		{
-			fprintf(*Error_logger,"Error! Poll timeout, %" PRIu64 " usec since last IMU read\n",  micros_since_last_interrupt());
+			fprintf(*debug_struct->Error_logger,"Error! Poll timeout, %" PRIu64 " usec since last IMU read\n",  micros_since_last_interrupt());
 		//	printf("micros %" PRIu64 "\n", micros_since_last_interrupt());
 			fflush(stdout);
 		}
@@ -1534,7 +1567,7 @@ int stop_imu_interrupt_func(){
 * function print out warnings when these conditions are detected. If write
 * errors are detected then this function tries some i2c transfers a second time.
 *******************************************************************************/
-int read_dmp_fifo(){
+int read_dmp_fifo(debug_struct_t *debug_struct){
 	
 				
 				
@@ -1634,7 +1667,11 @@ int read_dmp_fifo(){
 
 	//last_interrupt_timestamp_micros = micros_since_epoch();
 	// read it in!
+
+	debug_struct->flag2 = 5;
     ret = i2c_read_bytes(IMU_BUS, FIFO_R_W, fifo_count, &raw[0]);
+	
+	debug_struct->flag2 = 6;
 	//printf("micros %" PRIu64 "\n", micros_since_last_interrupt());
 	if(ret<0){
 		// if i2c_read returned -1 there was an error, try again
