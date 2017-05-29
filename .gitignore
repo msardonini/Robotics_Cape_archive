@@ -2,7 +2,7 @@
 ## Eclipse
 #################
 
-examples/flyMS/flight_core_config.txt
+config_files/*
 *.pydevproject
 .project
 .metadata
