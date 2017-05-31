@@ -40,7 +40,7 @@ int bypass_en;
 int dmp_en;
 int packet_len;
 pthread_t imu_interrupt_thread;
-int (*imu_interrupt_func)();
+//int (*imu_interrupt_func)();
 int interrupt_running;
 float mag_factory_adjust[3];
 float mag_offsets[3];
@@ -83,7 +83,7 @@ int load_gyro_offets();
 int load_mag_calibration();
 int write_mag_cal_to_disk(float offsets[3], float scale[3]);
 void* imu_interrupt_handler(void* ptr);
-int (*imu_interrupt_func)(); // pointer to user-defined function
+int (*imu_interrupt_func)(void* ptr); // pointer to user-defined function
 
 
 /*******************************************************************************
@@ -1500,7 +1500,7 @@ void* imu_interrupt_handler(void* ptr){
 				debug_struct->flag2 = 7;
 	//			printf("micros %" PRIu64 "\n", micros_since_last_interrupt()); 
 				i2c_release_bus(IMU_BUS);
-				
+				debug_struct->flag2 = 8;
 				// record if it was successful or not
 				if (ret == 0 ) last_read_successful=1;
 		
@@ -1508,20 +1508,23 @@ void* imu_interrupt_handler(void* ptr){
                                 {
                                         last_read_successful=0;
                                 }				
-				
+				debug_struct->flag2 = 9;
 				if (debug_struct->flag1)
 				{	
                                         fprintf(*debug_struct->Error_logger,"Read was no successful, after dmp_read_fifo \n");
                                         fflush(*debug_struct->Error_logger);
 				}
+				debug_struct->flag2 = 10;
 				// call the user function if not the first run
 				if(first_run == 1){
 					first_run = 0;
 				}
 				else if(interrupt_running){
+					debug_struct->flag2 = 11;
 					 imu_interrupt_func( ptr); 
 				}
 			}
+			debug_struct->flag2 = 12;
 		}
 		else if (ret_poll == 0)
 		{
@@ -1529,7 +1532,9 @@ void* imu_interrupt_handler(void* ptr){
 		//	printf("micros %" PRIu64 "\n", micros_since_last_interrupt());
 			fflush(stdout);
 		}
+		debug_struct->flag2 = 13;
 	}
+	debug_struct->flag2 = 14;
 	#ifdef DEBUG
 	printf("exiting imu interrupt handler thread\n");
 	#endif

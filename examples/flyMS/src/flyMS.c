@@ -86,14 +86,17 @@ uint16_t 				imu_err_count;
 imu_data_t				imu_data;			//Struct to relay all IMU info from driver to here
 float 					accel_bias[3] = {LAT_ACCEL_BIAS, LON_ACCEL_BIAS, ALT_ACCEL_BIAS};
 float 					yaw_offset[3] = {0, 0, YAW_OFFSET};
+ debug_struct_t debug_struct_real;
+ 
  
 int flight_core(void * ptr){
+	debug_struct_real.flag2 = 12;
 	imu_err_count = 0;
 	//control_variables_t *STATE = (control_variables_t*)ptr;
 	//printf("pointer value %f\n", STATE->pitch);
 	
 	static vector_t *X_state_Lat1, *X_state_Lon1;
-	
+	debug_struct_real.flag2 = 13;
 	//Keep an i for loops
 	static uint8_t i=0, i1=0;
 	
@@ -101,7 +104,7 @@ int flight_core(void * ptr){
 	static uint8_t First_Iteration=1, First_Iteration_GPS=1;
 	
 	static float initial_alt = 0;
-
+debug_struct_real.flag2 = 14;
 	//Initialize some variables if it is the first iteration
 	if(First_Iteration){
 		clock_gettime(CLOCK_MONOTONIC, &function_control.start_time); //Set the reference time to the first iteration
@@ -115,14 +118,14 @@ int flight_core(void * ptr){
 		fprintf(logger.GPS_logger,"time,deg_lon,min_lon,deg_lat,min_lat,speed,direction,gps_alt,hdop,fix\n");
 		printf("First Iteration ");
 		}
-
+debug_struct_real.flag2 = 15;
 	//Keep all other threads from interfering from this point until unlock
 	//pthread_mutex_lock(&function_control.lock);
 
 	/**********************************************************
 	*    Read the IMU for Rotational Position and Velocity    *
 	**********************************************************/
-	
+	debug_struct_real.flag2 = 16;
 	//Bring 3 axes of accel, gyro and angle data in to this program
 	for (i=0;i<3;i++) 
 	{	
@@ -138,7 +141,7 @@ int flight_core(void * ptr){
 	//Subtract the gravity vector component from lat/lon accel
 	transform.accel_drone.data[0]+= 9.8 * sin(transform.dmp_drone.data[0]);
 	transform.accel_drone.data[1]+= 9.8 * sin(transform.dmp_drone.data[1]);
-	
+	debug_struct_real.flag2 = 17;
 	//lowpass the accel data and subtract the biases
 	accel_data.accel_Lat	= update_filter(filters.LPF_Accel_Lat,transform.accel_drone.data[0]-accel_bias[0]);
 	accel_data.accel_Lon	= update_filter(filters.LPF_Accel_Lon,transform.accel_drone.data[1]-accel_bias[1]);
@@ -149,7 +152,7 @@ int flight_core(void * ptr){
 	control.roll 			= update_filter(filters.LPF_roll,transform.dmp_drone.data[1]);
 	control.yaw[1] 			= control.yaw[0];	
 	control.yaw[0] 			= transform.dmp_drone.data[2] + control.num_wraps*2*M_PI;
-
+debug_struct_real.flag2 = 18;
 	if(fabs(control.yaw[0] - control.yaw[1])  > 5)
 	{
 		if(control.yaw[0] > control.yaw[1]) control.num_wraps--;
@@ -160,13 +163,13 @@ int flight_core(void * ptr){
 	control.d_pitch			= transform.gyro_drone.data[0];
 	control.d_roll			= transform.gyro_drone.data[1];
 	control.d_yaw			= transform.gyro_drone.data[2];
-		
+		debug_struct_real.flag2 = 19;
 		
 	//Store some info in the accel_data struct to send to kalman filer
 	accel_data.pitch=control.pitch;
 	accel_data.roll=control.roll;
 	accel_data.yaw[0]=control.yaw[0];
-	
+	debug_struct_real.flag2 = 20;
 	
 	if(First_Iteration){
 		setpoint.yaw_ref[0]=control.yaw[0];
@@ -174,7 +177,7 @@ int flight_core(void * ptr){
 		control.yaw_ref_offset = control.yaw[0];
 		printf("Started \n");
 	}
-	
+	debug_struct_real.flag2 = 21;
 	/**********************************************************
 	*           Read the Barometer for Altitude				  *
 	**********************************************************/	
@@ -191,15 +194,16 @@ int flight_core(void * ptr){
 			i1=0;
 		}
 		control.baro_alt = update_filter(filters.LPF_baro_alt,bmp_get_altitude_m() - initial_alt);
+	debug_struct_real.flag2 = 22;
 	}
-	
+	debug_struct_real.flag2 = 23;
 	/**********************************************************
 	*           Read the RC Controller for Commands           *
 	**********************************************************/
 	
 	if(is_new_dsm2_dataMS()){
 		//printf("DSM2 In\n");
-		
+		debug_struct_real.flag2 = 24;
 		//Reset the timout counter back to zero
 		function_control.dsm2_timeout=0;
 		
@@ -227,7 +231,7 @@ int flight_core(void * ptr){
 		float Theta_Ref=atan2f(setpoint.pitch_ref,setpoint.roll_ref);
 		setpoint.roll_ref =P_R_MAG*cos(Theta_Ref-control.yaw[0]+control.yaw_ref_offset);
 		setpoint.pitch_ref=P_R_MAG*sin(Theta_Ref-control.yaw[0]+control.yaw_ref_offset);
-
+debug_struct_real.flag2 = 25;
 			if(setpoint.Aux[0]>0)//Remote Controlled Flight
 		{ 
 			//Set the throttle
@@ -268,7 +272,7 @@ int flight_core(void * ptr){
 			}
 		}
 	}
-	
+	debug_struct_real.flag2 = 26;
 	if(flight_config.enable_debug_mode && 0)
 	{
 		control.throttle = MIN_THROTTLE;
@@ -280,12 +284,12 @@ int flight_core(void * ptr){
 		setpoint.roll_ref = 0;
 	}
 	
-		
+		debug_struct_real.flag2 = 27;
 	/************************************************************************
 	*                   	Throttle Controller                             *
 	************************************************************************/
 	
- 
+ debug_struct_real.flag2 = 28;
 //	float throttle_compensation = 1 / cos(control.roll);
 //	throttle_compensation *= 1 / cos(control.pitch);		
 
@@ -305,7 +309,7 @@ int flight_core(void * ptr){
 	}
 
 	
-		
+		debug_struct_real.flag2 = 29;
 	/************************************************************************
 	* 	                  Pitch and Roll Controllers                        *
 	************************************************************************/
@@ -344,7 +348,7 @@ int flight_core(void * ptr){
 		
 		//control.throttle=saturateFilter(control.throttle,-0.15,0.15)+control.standing_throttle;
 	}
-	
+	debug_struct_real.flag2 = 30;
 	//Filter out any high freq noise coming from yaw in the CS translation
 	setpoint.filt_pitch_ref = update_filter(filters.LPF_Yaw_Ref_P,setpoint.pitch_ref);
 	setpoint.filt_roll_ref = update_filter(filters.LPF_Yaw_Ref_R,setpoint.roll_ref);
@@ -369,7 +373,7 @@ int flight_core(void * ptr){
 	control.upitch = update_filter(filters.pitch_rate_PD,control.dpitch_setpoint);
 	control.uroll = update_filter(filters.roll_rate_PD,control.droll_setpoint);				
 	
-
+debug_struct_real.flag2 = 31;
 	
 	/************************************************************************
 	*                        	Yaw Controller                              *
@@ -382,7 +386,7 @@ int flight_core(void * ptr){
 	
 	control.uyaw = update_filter(filters.yaw_rate_PD,setpoint.yaw_ref[0]-control.yaw[0]);
 	
-
+debug_struct_real.flag2 = 32;
 	
 	/************************************************************************
 	*                   	Apply the Integrators                           *
@@ -402,7 +406,7 @@ int flight_core(void * ptr){
 		control.dpitch_err_integrator=0;
 		control.dyaw_err_integrator=0;
 	}
-	
+	debug_struct_real.flag2 = 33;
 		
 	//only use integrators if airborne (above minimum throttle for > 1.5 seconds)
 	if(function_control.integrator_start >  400){
@@ -435,7 +439,7 @@ int flight_core(void * ptr){
 	control.u[2]=control.throttle+control.uroll+control.upitch-control.uyaw;
 	control.u[3]=control.throttle-control.uroll+control.upitch+control.uyaw;		
 
-	
+	debug_struct_real.flag2 = 34;
 	float largest_value = 1;
 	float smallest_value = 0;
 
@@ -451,7 +455,7 @@ int flight_core(void * ptr){
 		for(i=0;i<4;i++) control.u[i]-=offset;
 	}
 
-	
+	debug_struct_real.flag2 = 35;
 
 	if(!flight_config.enable_debug_mode)
 	{
@@ -473,14 +477,14 @@ int flight_core(void * ptr){
 			set_state(EXITING);
 		}
 	}	
-
+debug_struct_real.flag2 = 36;
 	fflush(stdout);	
 	
 	clock_gettime(CLOCK_MONOTONIC, &function_control.log_time);
 	control.time=(float)(function_control.log_time.tv_sec - function_control.start_time.tv_sec) + 
 						((float)(function_control.log_time.tv_nsec - function_control.start_time.tv_nsec) / 1000000000) ;
 	
-		
+		debug_struct_real.flag2 = 37;
 	logger.new_entry.time			= control.time;	
 	logger.new_entry.pitch			= control.pitch;	
 	logger.new_entry.roll			= control.roll;
@@ -512,8 +516,8 @@ int flight_core(void * ptr){
 	logger.new_entry.accel_lon		= accel_data.accel_Lon;
 	logger.new_entry.baro_alt		= control.baro_alt;
 	logger.new_entry.v_batt			= get_dc_jack_voltage();
-	log_core_data(&logger.core_logger, &logger.new_entry);
-	
+	//log_core_data(&logger.core_logger, &logger.new_entry);
+	debug_struct_real.flag2 = 38;
 		//Print some stuff
 		printf("\r ");
 		printf("time %3.3f ", control.time);
@@ -552,7 +556,7 @@ int flight_core(void * ptr){
 	//	printf("control: %d",get_state());
 	//	printf("Baro Alt: %f ",baro_alt);
 		
-		
+		debug_struct_real.flag2 = 39;
 		/***************** Get GPS Data if available *******************/
 	if(is_new_GPS_data()){
 		
@@ -583,7 +587,7 @@ int flight_core(void * ptr){
 	//pthread_mutex_unlock(&function_control.lock);
 		
 	
-		
+		debug_struct_real.flag2 = 40;
 	return 0;
 }
 	
@@ -655,9 +659,9 @@ int main(int argc, char *argv[]){
 	imu_config.accel_fsr = A_FSR_2G;
 	imu_config.enable_magnetometer=1;
 	
-	debug_struct_t debug_struct_real;
-	debug_struct_t *debug_struct = &debug_struct_real;
+//	debug_struct_t debug_struct_real;
 	memset(&debug_struct_real,0,sizeof(debug_struct_t));
+	debug_struct_t *debug_struct = &debug_struct_real;
 	debug_struct->Error_logger = &logger.Error_logger;	
 //	memset(debug_struct->flag1,0,sizeof(int));	
 //	memset(debug_struct->flag2,0,sizeof(int));
