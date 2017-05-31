@@ -46,6 +46,7 @@ either expressed or implied, of the FreeBSD Project.
 	X(int,  "%d", enable_gps,			1		)\
 	X(int,  "%d", enable_logging,		1		)\
 	X(int,  "%d", enable_debug_mode,	0		)\
+	X(int,  "%d", enable_autonomy,		0		)\
 												\
 	X(float,  "%f", alt_KP,				0		)\
 	X(float,  "%f", alt_KD, 			0		)\

@@ -232,7 +232,7 @@ debug_struct_real.flag2 = 18;
 		setpoint.roll_ref =P_R_MAG*cos(Theta_Ref-control.yaw[0]+control.yaw_ref_offset);
 		setpoint.pitch_ref=P_R_MAG*sin(Theta_Ref-control.yaw[0]+control.yaw_ref_offset);
 debug_struct_real.flag2 = 25;
-			if(setpoint.Aux[0]>0)//Remote Controlled Flight
+		if(setpoint.Aux[0]>0 || !flight_config.enable_autonomy)//Remote Controlled Flight
 		{ 
 			//Set the throttle
 			control.throttle=(get_dsm2_ch_normalizedMS(1)+1)* 0.5f *
@@ -516,7 +516,8 @@ debug_struct_real.flag2 = 36;
 	logger.new_entry.accel_lat		= accel_data.accel_Lat;
 	logger.new_entry.accel_lon		= accel_data.accel_Lon;
 	logger.new_entry.baro_alt		= control.baro_alt;
-	logger.new_entry.v_batt			= get_dc_jack_voltage();
+	logger.new_entry.v_batt			= 0;
+	//logger.new_entry.v_batt			= get_dc_jack_voltage();
 	//log_core_data(&logger.core_logger, &logger.new_entry);
 	debug_struct_real.flag2 = 38;
 		//Print some stuff
