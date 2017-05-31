@@ -17,7 +17,7 @@
 
 int initialize_dsm2MS();
 float get_dsm2_ch_normalizedMS(int ch);
-
+int is_new_dsm2_dataMS();
 
 int main(){
 	if(initialize_cape()){
@@ -43,7 +43,7 @@ int main(){
 	int i;
 	
 	while(get_state()!=EXITING){
-		if(is_new_dsm2_data()){	
+		if(is_new_dsm2_dataMS()){	
 			printf("\r");// keep printing on same line
 		//	int channels = get_num_dsm2_channels();
 			// print framerate

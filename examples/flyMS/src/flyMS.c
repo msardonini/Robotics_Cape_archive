@@ -79,7 +79,7 @@ int flight_core(void * ptr){
 		function_control.dsm2_timeout=0;
 		X_state_Lat1 = get_lat_state();
 		X_state_Lon1 = get_lon_state();	
-		read_barometer();
+		//read_barometer();
 		initial_alt = bmp_get_altitude_m();
 		set_state(RUNNING);
 		fprintf(logger.GPS_logger,"time,deg_lon,min_lon,deg_lat,min_lat,speed,direction,gps_alt,hdop,fix\n");
@@ -199,10 +199,11 @@ int flight_core(void * ptr){
 		setpoint.roll_ref =P_R_MAG*cos(Theta_Ref-control.yaw[0]+control.yaw_ref_offset);
 		setpoint.pitch_ref=P_R_MAG*sin(Theta_Ref-control.yaw[0]+control.yaw_ref_offset);
 
-			if(setpoint.Aux[0]>0)//Remote Controlled Flight
+			if(setpoint.Aux[0]>0 || 1)//Remote Controlled Flight
 		{ 
 			//Set the throttle
 			control.throttle=(get_dsm2_ch_normalizedMS(1)+1)*0.5*(MAX_THROTTLE-MIN_THROTTLE)+MIN_THROTTLE;
+				printf("uValue %f \n", control.throttle); 	
 		
 			//Keep the aircraft at a constant height while making manuevers 
 			control.throttle *= 1/(cos(control.pitch)*cos(control.roll));
@@ -260,7 +261,7 @@ int flight_core(void * ptr){
 //	float throttle_compensation = 1 / cos(control.roll);
 //	throttle_compensation *= 1 / cos(control.pitch);		
 
-	if(function_control.altitudeHold)
+	if(function_control.altitudeHold && 0) //Don't do this for now
 	{
 		if(function_control.altitudeHoldFirstIteration)
 		{
@@ -492,20 +493,20 @@ int flight_core(void * ptr){
 	//	printf("vel %2.2f ",lidar_data.d_altitude[0]);		
 	//	printf("H_d %3.3f ", control.height_damping);
 	//	printf("Alt_ref %3.1f ",control.alt_ref);
-	//	printf(" U1:  %2.2f ",control.u[0]);
-	//	printf(" U2: %2.2f ",control.u[1]);
-	//	printf(" U3:  %2.2f ",control.u[2]);
-	//	printf(" U4: %2.2f ",control.u[3]);	
-		printf(" TH %2.2f ", control.throttle);
-		printf("Aux %2.1f ", setpoint.Aux[0]);
+		printf(" U1:  %2.2f ",control.u[0]);
+		printf(" U2: %2.2f ",control.u[1]);
+		printf(" U3:  %2.2f ",control.u[2]);
+		printf(" U4: %2.2f ",control.u[3]);	
+	//	printf(" TH %2.2f ", control.throttle);
+	//	printf("Aux %2.1f ", setpoint.Aux[0]);
 	//	printf("function: %f",get_dsm2_ch_normalizedMS(6));
 	//	printf("num wraps %d ",control.num_wraps);
-		printf(" Pitch_ref %2.2f ", setpoint.filt_pitch_ref);
+	//	printf(" Pitch_ref %2.2f ", setpoint.filt_pitch_ref);
 	//	printf(" Roll_ref %2.2f ", setpoint.filt_roll_ref);
-		printf(" Yaw_ref %2.2f ", setpoint.yaw_ref[0]);
+	//	printf(" Yaw_ref %2.2f ", setpoint.yaw_ref[0]);
 	//	printf(" Pitch %1.2f ", control.pitch);
 	//	printf(" Roll %1.2f ", control.roll);
-		printf(" Yaw %2.3f ", control.yaw[0]); 
+	//	printf(" Yaw %2.3f ", control.yaw[0]); 
 	//	printf(" DPitch %1.2f ", control.d_pitch_f); 
 	//	printf(" DRoll %1.2f ", control.d_roll_f);
 	//	printf(" DYaw %2.3f ", control.d_yaw); 	
@@ -667,11 +668,11 @@ int main(int argc, char *argv[]){
 	init_esc_hardware();	 
 	 
 	//Start the mutex lock to prevent threads from interfering
-	if(pthread_mutex_init(&function_control.lock,NULL))
+/*	if(pthread_mutex_init(&function_control.lock,NULL))
 	{
 		printf("Error Lock init failed\n");
 	}
-		
+*/		
 	//Start the control program
 	flight_core_running = 1;
 	set_imu_interrupt_func(&flight_core);

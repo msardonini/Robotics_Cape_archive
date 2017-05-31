@@ -1471,9 +1471,14 @@ void* imu_interrupt_handler(void* ptr){
 					printf("IMU interrupt was received. Reading IMU anyway.\n");
 				}
 				i2c_claim_bus(IMU_BUS);
-//				last_interrupt_timestamp_micros = micros_since_epoch();
+			last_interrupt_timestamp_micros = micros_since_epoch();
 				ret = read_dmp_fifo();
-	//			printf("micros %" PRIu64 "\n", micros_since_last_interrupt()); 
+				if(micros_since_last_interrupt() > 10000)
+				{
+					fprintf(*Error_logger,"Error! read_dmp_fifo took more than 10k usec\n");
+				}
+
+	//		printf("micros %" PRIu64 "\n", micros_since_last_interrupt()); 
 				i2c_release_bus(IMU_BUS);
 				
 				// record if it was successful or not
@@ -1492,9 +1497,20 @@ void* imu_interrupt_handler(void* ptr){
 		}
 		else if (ret_poll == 0)
 		{
-			fprintf(*Error_logger,"Error! Poll timeout, %" PRIu64 " usec since last IMU read\n",  micros_since_last_interrupt());
+			uint64_t us_poll_timeout = micros_since_last_interrupt();
+			fprintf(*Error_logger,"Error! Poll timeout, %" PRIu64 " usec since last IMU read\n",  us_poll_timeout);
 		//	printf("micros %" PRIu64 "\n", micros_since_last_interrupt());
-			fflush(stdout);
+			if (us_poll_timeout > 100000 && us_poll_timeout < 12500)
+			{
+				fprintf(*Error_logger,"Reseeting imu due to long timeout!!\n");
+				reset_mpu9250();
+			}
+			fflush(*Error_logger);
+		}
+		else
+		{
+			fprintf(*Error_logger, "Error:, poll_ret < 0, something weird is happening\n");
+			fflush(*Error_logger);
 		}
 	}
 	#ifdef DEBUG
