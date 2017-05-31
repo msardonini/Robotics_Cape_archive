@@ -41,7 +41,7 @@ either expressed or implied, of the FreeBSD Project.
 
 
 #define PITCH_ROLL_RATE_KI .05
-#define YAW_KI .05
+#define YAW_KI 0.05
 
 
 #include <errno.h>
@@ -414,9 +414,9 @@ debug_struct_real.flag2 = 32;
 		control.dpitch_err_integrator += control.upitch * DT;
 		control.dyaw_err_integrator += control.uyaw * DT;		
 		
-		control.upitch+=PITCH_ROLL_RATE_KI * control.dpitch_err_integrator;
-		control.uroll +=PITCH_ROLL_RATE_KI * control.droll_err_integrator;
-		control.uyaw+=YAW_KI * control.dyaw_err_integrator;
+		control.upitch+=flight_config.Dpitch_KI * control.dpitch_err_integrator;
+		control.uroll +=  flight_config.Droll_KI * control.droll_err_integrator;
+		control.uyaw+=flight_config.yaw_KI * control.dyaw_err_integrator;
 	}
 	
 	//Apply a saturation filter
@@ -685,7 +685,7 @@ int main(int argc, char *argv[]){
 	}
 
 	init_rotation_matrix(&transform); //Initialize the rotation matrix from IMU to drone
-	initialize_filters(&filters);
+	initialize_filters(&filters, &flight_config);
 
 	//Start the GPS thread, flash the LED's if GPS has a fix
 	if(flight_config.enable_gps)

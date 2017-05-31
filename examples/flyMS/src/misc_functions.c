@@ -189,17 +189,17 @@ void* quietEscs(void *ptr){
 *	initialize_filters()
 *	setup of feedback controllers used in flight core
 ************************************************************************/
-int initialize_filters(filters_t *filters){
+int initialize_filters(filters_t *filters, core_config_t *flight_config){
 
 	
-	filters->pitch_PD = generatePID(PITCH_ROLL_KP, PITCH_ROLL_KI, PITCH_ROLL_KD, 0.15, DT);
-	filters->roll_PD  = generatePID(PITCH_ROLL_KP, PITCH_ROLL_KI, PITCH_ROLL_KD, 0.15, DT);
+	filters->pitch_PD = generatePID(flight_config->pitch_KP, flight_config->pitch_KI, flight_config->pitch_KD, 0.15, DT);
+	filters->roll_PD  = generatePID(flight_config->roll_KP, flight_config->roll_KI, flight_config->roll_KD, 0.15, DT);
 	//filters->yaw_PD   = generatePID(YAW_KP,		  0, YAW_KD,	    0.15, 0.005);
 
 	//PD Controller (I is done manually)
-	filters->pitch_rate_PD = generatePID(PITCH_ROLL_RATE_KP, 0, PITCH_ROLL_RATE_KD, 0.15, DT);
-	filters->roll_rate_PD  = generatePID(PITCH_ROLL_RATE_KP, 0, PITCH_ROLL_RATE_KD, 0.15, DT);
-	filters->yaw_rate_PD   = generatePID(YAW_KP,		  0, YAW_KD,	    0.15, DT);
+	filters->pitch_rate_PD = generatePID(flight_config->Dpitch_KP, 0, flight_config->Dpitch_KD, 0.15, DT);
+	filters->roll_rate_PD  = generatePID(flight_config->Droll_KP, 0, flight_config->Droll_KD, 0.15, DT);
+	filters->yaw_rate_PD   = generatePID(flight_config->yaw_KP,		  0, flight_config->yaw_KD,	    0.15, DT);
 	
 	//Gains on Low Pass Filter for raw gyroscope output
 	

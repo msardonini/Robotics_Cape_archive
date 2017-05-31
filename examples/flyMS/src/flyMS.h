@@ -32,6 +32,8 @@ either expressed or implied, of the FreeBSD Project.
 #include "linear_algebra.h"
 #include <robotics_cape.h>
 #include "filter.h"
+#include "config.h"
+
 
 #ifndef FLIGHT_DEFS_H
 #define FLIGHT_DEFS_H
@@ -223,7 +225,7 @@ int ready_check(control_variables_t *control);
 void zero_escs();
 accel_data_t* get_accel_pointer();
 void* barometer_monitor();
-int initialize_filters(filters_t *filters);
+int initialize_filters(filters_t *filters, core_config_t *flight_config);
 int init_rotation_matrix(tranform_matrix_t *transform);
 void* LED_thread(void *ptr);
 void init_esc_hardware();

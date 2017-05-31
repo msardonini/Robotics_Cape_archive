@@ -52,25 +52,25 @@ either expressed or implied, of the FreeBSD Project.
 	X(float,  "%f", alt_KI, 			0		)\
 												\
 												\
-	X(float,  "%f", Roll_KP,  			5		)\
-	X(float,  "%f", Roll_KD,  			2		)\
-	X(float,  "%f", Roll_KI, 			0.175	)\
+	X(float,  "%f", roll_KP,  			5		)\
+	X(float,  "%f", roll_KD,  			2		)\
+	X(float,  "%f", roll_KI, 			0.175	)\
 	X(float,  "%f", Droll_KP, 			0.05	)\
-	X(float,  "%f", Droll_KI, 			0.000	)\
+	X(float,  "%f", Droll_KI, 			0.32	)\
 	X(float,  "%f", Droll_KD, 			0.00155	)\
 	X(float,  "%f", max_roll_setpoint,	0.4		)\
 												\
 												\
-	X(float,  "%f", Pitch_KP,  			5		)\
-	X(float,  "%f", Pitch_KD,  			2		)\
-	X(float,  "%f", Pitch_KI, 			0.175	)\
+	X(float,  "%f", pitch_KP,  			5		)\
+	X(float,  "%f", pitch_KD,  			2		)\
+	X(float,  "%f", pitch_KI, 			0.175	)\
 	X(float,  "%f", Dpitch_KP, 			0.05	)\
-	X(float,  "%f", Dpitch_KI, 			0.001	)\
+	X(float,  "%f", Dpitch_KI, 			0.32	)\
 	X(float,  "%f", Dpitch_KD, 			0.003	)\
 	X(float,  "%f", max_pitch_setpoint,	0.4		)\
 												\
 	X(float,  "%f", yaw_KP, 			0.5		)\
-	X(float,  "%f", yaw_KI, 			0		)\
+	X(float,  "%f", yaw_KI, 			0.05	)\
 	X(float,  "%f", yaw_KD, 			0.05	)\
 												\
 	X(float,  "%f", max_yaw_rate,		3		)\
