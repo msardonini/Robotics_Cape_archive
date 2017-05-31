@@ -75,6 +75,7 @@ either expressed or implied, of the FreeBSD Project.
 												\
 	X(float,  "%f", max_yaw_rate,		3		)\
 	X(float,  "%f", idle_speed,			0.3		)\
+	X(float,  "%f", min_throttle, 		0.3	)\
 	X(float,  "%f", max_throttle, 		0.75	)\
 												\
 	X(float,  "%f", max_vert_velocity,	3		)\

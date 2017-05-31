@@ -235,7 +235,8 @@ debug_struct_real.flag2 = 25;
 			if(setpoint.Aux[0]>0)//Remote Controlled Flight
 		{ 
 			//Set the throttle
-			control.throttle=(get_dsm2_ch_normalizedMS(1)+1)*0.5*(MAX_THROTTLE-MIN_THROTTLE)+MIN_THROTTLE;
+			control.throttle=(get_dsm2_ch_normalizedMS(1)+1)* 0.5f *
+					(flight_config.max_throttle-flight_config.min_throttle)+flight_config.min_throttle;
 		
 			//Keep the aircraft at a constant height while making manuevers 
 			control.throttle *= 1/(cos(control.pitch)*cos(control.roll));
